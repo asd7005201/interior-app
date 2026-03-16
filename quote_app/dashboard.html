@@ -1,0 +1,821 @@
+﻿<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top">
+  <?!= include('styles'); ?>
+  <?!= include('ui'); ?>
+  <style>
+    /* Dashboard-specific styles */
+    .quote-status-line {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .quote-actions-grid {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .quote-actions-grid .btn--sm {
+      min-height: 32px;
+      padding: 5px 14px;
+      font-size: 12px;
+    }
+    .quote-action-placeholder {
+      opacity: 0.3 !important;
+      cursor: default !important;
+      pointer-events: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Status badge variants */
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border: 1px solid;
+    }
+    .badge-status--draft {
+      background: var(--color-warm-100);
+      color: var(--color-warm-600);
+      border-color: var(--color-warm-300);
+    }
+    .badge-status--sent {
+      background: var(--pri-bg, #F2F8F6);
+      color: #3D7A6A;
+      border-color: #BDD8D0;
+    }
+    .badge-status--approved {
+      background: var(--color-gold-soft);
+      color: var(--color-gold-dark);
+      border-color: rgba(160,139,96,0.35);
+    }
+    .badge-status--expired {
+      background: var(--color-danger-soft);
+      color: var(--color-danger);
+      border-color: rgba(184,47,36,0.2);
+    }
+
+    /* Memo state badge */
+    .badge-memo {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .badge-memo--none {
+      background: var(--color-warm-50);
+      color: var(--color-warm-400);
+      border-color: var(--color-warm-200);
+    }
+    .badge-memo--read {
+      background: #F4F5EE;
+      color: #6B7A3A;
+      border-color: #D4DCBA;
+    }
+    .badge-memo--new {
+      background: var(--pri-bg, #F2F8F6);
+      color: #2F6B5E;
+      border-color: #B0D4C8;
+      animation: pulse-memo 2s ease-in-out infinite;
+    }
+    @keyframes pulse-memo {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(240,200,120,0); }
+      50% { box-shadow: 0 0 0 3px rgba(240,200,120,0.25); }
+    }
+    .badge-memo--new::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #2F6B5E;
+      flex-shrink: 0;
+    }
+
+    /* Quote ID pill */
+    .quote-id-pill {
+      display: inline-block;
+      font: var(--f-xs);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--color-warm-500);
+      background: var(--color-warm-100);
+      border: 1px solid var(--color-warm-200);
+      border-radius: 6px;
+      padding: 4px 10px;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .quote-id-pill--full {
+      max-width: none;
+    }
+
+    /* Dash cell tweaks */
+    .dash-cell .help-text {
+      font-size: 11px;
+      color: var(--color-warm-400);
+      margin-bottom: 2px;
+    }
+  </style>
+<body>
+  <? var U = (typeof app_url !== 'undefined' && app_url) ? app_url : ""; ?>
+  <? var PREFILL_ADMIN_PW = (typeof prefill_admin_password !== 'undefined' && prefill_admin_password) ? String(prefill_admin_password) : ""; ?>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="bentoWrap">
+        <button id="btnBentoNav" type="button" class="bentoBtn" aria-label="메뉴 열기" aria-expanded="false" aria-controls="bentoNavMenu">
+          <span class="bentoDots" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <i></i><i></i><i></i>
+            <i></i><i></i><i></i>
+          </span>
+        </button>
+        <div id="bentoNavMenu" class="nav bentoMenu">
+          <a data-page="edit" href="?page=edit">견적 작성</a>
+          <a data-page="catalog" href="?page=catalog">자재 카탈로그</a>
+          <a data-page="templates" href="?page=templates">견적 템플릿</a>
+          <a data-page="templateslist" href="?page=templateslist">템플릿 전체 목록</a>
+          <a class="active" data-page="dashboard" href="?page=dashboard">대시보드</a>
+          <a data-page="materialgroups" href="?page=materialgroups">자재군 매핑</a>
+        </div>
+      </div>
+      <div class="nav">
+        <a data-page="edit" href="?page=edit">견적 작성</a>
+        <a data-page="catalog" href="?page=catalog">자재 카탈로그</a>
+        <a data-page="templates" href="?page=templates">견적 템플릿</a>
+        <a data-page="templateslist" href="?page=templateslist">템플릿 목록</a>
+        <a class="active" data-page="dashboard" href="?page=dashboard">대시보드</a>
+        <a data-page="materialgroups" href="?page=materialgroups">자재군 매핑</a>
+      </div>
+      <div class="topbar__right">
+        <span class="badge">관리자 전용</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="card__header">
+        <h1 class="card__title">대시보드</h1>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <a id="btnMaterialGroups" href="?page=materialgroups" class="btn btn--weak btn--sm">자재군 매핑</a>
+          <button id="btnLock" type="button" class="btn btn--weak btn--sm">비밀번호 지우기</button>
+        </div>
+      </div>
+      <div class="card__body">
+        <div style="max-width:400px;">
+          <label for="adminPw">관리자 비밀번호</label>
+          <input id="adminPw" type="password" placeholder="Settings의 admin_password" autocomplete="current-password">
+        </div>
+        <div id="status" class="help-text" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2 class="card__title">검색/필터</h2>
+        <button id="btnSearch" type="button" class="btn btn--primary btn--sm">조회</button>
+      </div>
+      <div class="card__body">
+        <div class="form-grid form-grid--3">
+          <div class="field">
+            <label for="q">검색</label>
+            <input id="q" placeholder="고객명, 현장명, 연락처, 메모">
+          </div>
+          <div class="field">
+            <label for="st">상태</label>
+            <select id="st">
+              <option value="">전체</option>
+              <option value="draft">draft (작성중)</option>
+              <option value="sent">sent (발송)</option>
+              <option value="approved">approved (승인)</option>
+              <option value="expired">expired (만료)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="limit">조회 개수</label>
+            <input id="limit" type="number" min="1" max="200" value="200">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2 class="card__title">요약</h2>
+        <button id="btnLoadStats" type="button" class="btn btn--weak btn--sm">통계 새로고침</button>
+      </div>
+      <div class="card__body">
+        <div class="dash-row-grid" style="grid-template-columns:repeat(2,1fr);">
+          <div class="stat-card stat-card--gold">
+            <div class="stat-card__label">이번달 합계</div>
+            <div class="stat-card__value" id="sumMonth">0원</div>
+          </div>
+          <div class="stat-card stat-card--gold">
+            <div class="stat-card__label">확정 전환율</div>
+            <div class="stat-card__value" id="statConversion">-</div>
+          </div>
+        </div>
+
+        <div class="dash-row-grid" style="margin-top:12px;">
+          <div class="stat-card">
+            <div class="stat-card__label">미결 건수</div>
+            <div class="stat-card__value" id="sumPending">0건</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">신규 메모</div>
+            <div class="stat-card__value" id="sumNewNote">0건</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">전체 견적 수</div>
+            <div class="stat-card__value" id="statTotalCount">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">조회 결과</div>
+            <div class="stat-card__value" id="sumTotal">0건</div>
+          </div>
+        </div>
+
+        <div class="dash-row-grid" style="margin-top:12px; grid-template-columns:repeat(2,1fr);">
+          <div class="stat-card">
+            <div class="stat-card__label">평균 견적 금액</div>
+            <div class="stat-card__value" id="statAvgAmount">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__label">최고 월매출</div>
+            <div class="stat-card__value" id="statTopMonth">-</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--color-line);">
+          <div style="font:var(--f-xs); font-weight:700; color:var(--color-warm-500); margin-bottom:12px; letter-spacing:0.03em;">월별 추이 (최근 6개월)</div>
+          <div id="monthlyChart" class="help-text">조회 버튼을 눌러 주세요.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2 class="card__title">최근 견적</h2>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button id="btnToggleQuoteIds" type="button" class="btn btn--weak btn--sm" aria-pressed="false">ID 전체 보기</button>
+          <div id="listMeta" class="help-text">조건을 입력하고 조회를 눌러요.</div>
+        </div>
+      </div>
+      <div class="card__body">
+        <div id="rows" class="list" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <div id="memoSheet" class="modal-host modal-host--sheet" aria-hidden="true">
+      <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="memoSheetTitle">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <h3 id="memoSheetTitle" style="margin:0;">요청 메모</h3>
+          <button type="button" class="btn btn--weak btn--sm" data-close-layer="1">닫기</button>
+        </div>
+        <div id="memoSheetBody" style="margin-top:12px; white-space:pre-wrap;"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var latestRows = [];
+  var showFullQuoteIds = false;
+  var dashboardLoadReqSeq = 0;
+
+  function $(id){ return document.getElementById(id); }
+  function setStatus(msg){ $("status").innerText = msg || ""; }
+  function toast(msg, type){
+    if (!msg || !window.AppUI) return;
+    window.AppUI.toast(msg, { type: type || "", position: "bottom" });
+  }
+  function openLayerFallback(host){
+    if (!host) return;
+    host.style.display = "flex";
+    host.classList.add("is-open");
+    host.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+  function closeLayerFallback(host){
+    if (!host) return;
+    host.style.display = "none";
+    host.classList.remove("is-open");
+    host.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+  function esc(s){
+    return String(s || "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function fmtNum(n){ return Number(n || 0).toLocaleString("ko-KR"); }
+  function fmtMoney(n){ return fmtNum(n) + "원"; }
+  function shortQuoteId(id){
+    var s = String(id || "").trim();
+    if (!s) return "-";
+    if (s.length <= 14) return s;
+    return s.slice(0, 8) + "..." + s.slice(-4);
+  }
+  function getDisplayQuoteId(id){
+    var raw = String(id || "").trim();
+    if (!raw) return "-";
+    return showFullQuoteIds ? raw : shortQuoteId(raw);
+  }
+  function updateQuoteIdToggleLabel(){
+    var btn = $("btnToggleQuoteIds");
+    if (!btn) return;
+    btn.innerText = showFullQuoteIds ? "ID 줄여 보기" : "ID 전체 보기";
+    btn.setAttribute("aria-pressed", showFullQuoteIds ? "true" : "false");
+  }
+  function actionSlot(label, opts){
+    var o = opts || {};
+    var text = esc(label);
+    if (!o.show){
+      return '<span class="btn btn--weak btn--sm quote-action-placeholder" aria-hidden="true">' + text + '</span>';
+    }
+    var qid = esc(o.quoteId || "");
+    if (o.href){
+      return '<a class="btn btn--weak btn--sm" data-quote-id="' + qid + '" href="' + esc(o.href) + '" target="_blank" rel="noopener">' + text + '</a>';
+    }
+    return '<button type="button" class="btn btn--weak btn--sm" data-action="' + esc(o.action || "") + '" data-quote-id="' + qid + '">' + text + '</button>';
+  }
+  function fmtDate(v){
+    var s = String(v || "").trim();
+    if(!s) return "";
+    var d = new Date(s);
+    if(isNaN(d.getTime())) return s;
+    return d.toLocaleString("ko-KR");
+  }
+  function statusLabel(v){
+    var s = String(v || "").toLowerCase();
+    if (s === "draft") return "작성중";
+    if (s === "sent") return "발송";
+    if (s === "approved") return "승인";
+    if (s === "expired") return "만료";
+    return s || "";
+  }
+  function statusBadgeClass(v){
+    var s = String(v || "").toLowerCase();
+    if (s === "approved") return "badge-status badge-status--approved";
+    if (s === "expired") return "badge-status badge-status--expired";
+    if (s === "sent") return "badge-status badge-status--sent";
+    if (s === "draft") return "badge-status badge-status--draft";
+    return "badge-status badge-status--draft";
+  }
+  function setLoading(btn, on){
+    if (!btn) return;
+    btn.disabled = !!on;
+    btn.classList.toggle("loading", !!on);
+  }
+
+  var APP_URL = "<?= String(U || '') ?>";
+  var SERVER_PREFILL_ADMIN_PW = decodeURIComponent("<?= encodeURIComponent(String(PREFILL_ADMIN_PW || '')) ?>");
+  var PW_KEY = "QUOTEAPP_ADMINPW_V1";
+  var adminCtx = (window.AppShared && typeof window.AppShared.createAdminContext === "function")
+    ? window.AppShared.createAdminContext({
+        appUrl: APP_URL,
+        prefillAdminPw: SERVER_PREFILL_ADMIN_PW,
+        pwKey: PW_KEY,
+        adminInputId: "adminPw",
+        setStatus: setStatus,
+        afterPatchNav: function(ctx){
+          var mgBtn = $("btnMaterialGroups");
+          if (mgBtn) mgBtn.href = ctx.appendAdminAuthParam(ctx.pageUrl("materialgroups"), ctx.token);
+        }
+      })
+    : null;
+  if (adminCtx && adminCtx.appUrl) APP_URL = adminCtx.appUrl;
+
+  function normalizeBaseUrl(u){ return adminCtx ? adminCtx.normalizeBaseUrl(u) : String(u || "").trim(); }
+  function resolveAppUrl(){ return adminCtx ? adminCtx.resolveAppUrl(APP_URL) : APP_URL; }
+  APP_URL = resolveAppUrl();
+  function getErrMessage(err){ return adminCtx ? adminCtx.getErrMessage(err) : ((err && err.message) ? String(err.message) : String(err || "")); }
+  function isSessionToken(v){ return adminCtx ? adminCtx.isSessionToken(v) : (String(v || "").trim().indexOf("AS_") === 0); }
+  function getStoredCred(){ return adminCtx ? adminCtx.getStoredCred() : ""; }
+  function setStoredCred(v){ if (adminCtx) adminCtx.setStoredCred(v); }
+  function clearStoredCred(){ if (adminCtx) adminCtx.clearStoredCred(); }
+  function currentCred(){ return adminCtx ? adminCtx.currentCred() : String(($("adminPw") && $("adminPw").value) || "").trim(); }
+  function appendAdminAuthParam(url, token){ return adminCtx ? adminCtx.appendAdminAuthParam(url, token) : String(url || ""); }
+  function pageUrl(page){ return adminCtx ? adminCtx.pageUrl(page) : (APP_URL + "?page=" + encodeURIComponent(String(page || "edit"))); }
+  function patchNavLinks(){ if (adminCtx) adminCtx.patchNavLinks(); }
+  function initBentoNav(){
+    var btn = $("btnBentoNav");
+    var menu = $("bentoNavMenu");
+    if (!btn || !menu) return;
+
+    function closeMenu(){
+      menu.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+    function toggleMenu(){
+      var open = menu.classList.toggle("open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    btn.addEventListener("click", function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+    });
+    document.addEventListener("click", function(e){
+      if (!menu.classList.contains("open")) return;
+      if (menu.contains(e.target) || btn.contains(e.target)) return;
+      closeMenu();
+    });
+    document.addEventListener("keydown", function(e){
+      if (e.key === "Escape") closeMenu();
+    });
+    var links = menu.querySelectorAll("a[data-page]");
+    for (var i = 0; i < links.length; i++) links[i].addEventListener("click", closeMenu);
+  }
+
+  function handleAdminSessionExpired(err){ return adminCtx ? adminCtx.handleAdminSessionExpired(err) : false; }
+  function pw(){ return adminCtx ? adminCtx.pw() : String(($("adminPw") && $("adminPw").value) || "").trim(); }
+  function stripSensitiveQueryParams(){ if (adminCtx) adminCtx.stripSensitiveQueryParams(); }
+  function restorePw(){ if (adminCtx) adminCtx.restorePw(); }
+  function maybeUpgradeToSessionToken(onDone){
+    if (adminCtx) return adminCtx.maybeUpgradeToSessionToken(onDone);
+    if (typeof onDone === "function") onDone();
+  }
+  function clearPw(silent){ if (adminCtx) adminCtx.clearPw(silent); }
+
+  function renderMemoHistoryHtml(notes){
+    var arr = Array.isArray(notes) ? notes.slice() : [];
+    if (!arr.length) return '<div class="help-text">메모가 없어요.</div>';
+    var html = '<div class="list">';
+    for (var i = 0; i < arr.length; i++){
+      var n = arr[i] || {};
+      var when = String(n.created_at || "").trim() || "-";
+      var source = String(n.source || "").trim() || "-";
+      html += '' +
+        '<div class="list-row" style="display:block;">' +
+          '<div class="help-text" style="display:flex;gap:8px;align-items:center;">' +
+            '<span>' + esc(when) + '</span>' +
+            '<span class="badge">' + esc(source) + '</span>' +
+          '</div>' +
+          '<div style="margin-top:6px; white-space:pre-wrap;">' + esc(String(n.note || "")) + '</div>' +
+        '</div>' +
+        (i === arr.length - 1 ? '' : '<div class="divider"></div>');
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function showMemoSheetList(notes, quoteId){
+    var body = $("memoSheetBody");
+    body.innerHTML = renderMemoHistoryHtml(notes);
+    var title = $("memoSheetTitle");
+    if (title) title.innerText = "요청 메모 히스토리 (" + String(quoteId || "-") + ")";
+    if (window.AppUI) {
+      window.AppUI.openSheet($("memoSheet"));
+    } else {
+      openLayerFallback($("memoSheet"));
+    }
+  }
+
+  function loadNotesHistory(quoteId){
+    var qid = String(quoteId || "").trim();
+    if (!qid) return;
+    var body = $("memoSheetBody");
+    var title = $("memoSheetTitle");
+    if (title) title.innerText = "요청 메모 히스토리 (" + qid + ")";
+    if (window.AppUI) {
+      window.AppUI.openSheet($("memoSheet"));
+    } else {
+      openLayerFallback($("memoSheet"));
+    }
+    body.innerHTML = '<div class="help-text">메모를 불러오는 중...</div>';
+
+    google.script.run
+      .withSuccessHandler(function(list){
+        showMemoSheetList(list || [], qid);
+      })
+      .withFailureHandler(function(err){
+        if (handleAdminSessionExpired(err)) return;
+        body.innerHTML = '<div class="help-text">메모를 불러오지 못했어요.</div>';
+        setStatus("메모 조회 실패: " + getErrMessage(err));
+        toast("메모 조회에 실패했어요.", "error");
+      })
+      .listCustomerNotesAdmin(qid, 200, pw());
+  }
+
+  function markRead(quoteId){
+    var qid = String(quoteId || "").trim();
+    if (!qid) return;
+
+    google.script.run
+      .withSuccessHandler(function(){
+        for (var i = 0; i < latestRows.length; i++){
+          if (String(latestRows[i].quote_id || "") !== qid) continue;
+          latestRows[i].has_new_note = false;
+        }
+        render(latestRows);
+        setStatus("메모를 읽음 처리했어요.");
+        toast("메모를 읽음 처리했어요.", "success");
+      })
+      .withFailureHandler(function(err){
+        if (handleAdminSessionExpired(err)) return;
+        setStatus("읽음 처리 실패: " + getErrMessage(err));
+        toast("읽음 처리에 실패했어요.", "error");
+      })
+      .markCustomerNotesRead(qid, pw());
+  }
+
+  function renderSummary(list){
+    var arr = Array.isArray(list) ? list : [];
+    var now = new Date();
+    var month = now.getMonth();
+    var year = now.getFullYear();
+    var monthTotal = 0;
+    var pending = 0;
+    var noteCount = 0;
+
+    for (var i = 0; i < arr.length; i++){
+      var row = arr[i] || {};
+      var created = new Date(String(row.created_at || ""));
+      if (!isNaN(created.getTime()) && created.getFullYear() === year && created.getMonth() === month){
+        monthTotal += Number(row.total || 0);
+      }
+      var st = String(row.status || "").toLowerCase();
+      if (st === "draft" || st === "sent") pending += 1;
+      if (row.has_new_note) noteCount += 1;
+    }
+
+    $("sumMonth").innerText = fmtMoney(monthTotal);
+    $("sumPending").innerText = fmtNum(pending) + "건";
+    $("sumNewNote").innerText = fmtNum(noteCount) + "건";
+    $("sumTotal").innerText = fmtNum(arr.length) + "건";
+  }
+
+  function renderSkeleton(count){
+    var total = Number(count || 5);
+    var html = "";
+    for (var i = 0; i < total; i++){
+      html += '<div class="list-row quote-dashboard-row">' +
+                '<div class="quote-dashboard-row__id"><div class="skeleton" style="height:30px;width:120px;border-radius:999px;"></div></div>' +
+                '<div class="quote-dashboard-row__main">' +
+                  '<div class="skeleton" style="height:14px;width:68%;"></div>' +
+                  '<div class="skeleton" style="height:12px;width:42%;margin-top:8px;"></div>' +
+                '</div>' +
+                '<div class="quote-dashboard-row__actions"><div class="skeleton" style="height:26px;width:100%;"></div></div>' +
+              '</div>' +
+              '<div class="divider"></div>';
+    }
+    $("rows").innerHTML = html;
+  }
+
+  function render(list){
+    latestRows = Array.isArray(list) ? list.slice() : [];
+    renderSummary(latestRows);
+
+    var box = $("rows");
+    box.innerHTML = "";
+
+    if(!latestRows.length){
+      box.innerHTML = '<div class="help-text">조회 결과가 없어요.</div>';
+      $("listMeta").innerText = "0건";
+      return;
+    }
+
+    $("listMeta").innerText = "총 " + fmtNum(latestRows.length) + "건";
+    var frag = document.createDocumentFragment();
+
+    for (var i = 0; i < latestRows.length; i++){
+      var x = latestRows[i] || {};
+      var quoteId = String(x.quote_id || "");
+      var hasMemo = !!String(x.customer_note_latest || "").trim();
+      var newMemo = !!x.has_new_note;
+      var rowClass = newMemo ? "list-row quote-dashboard-row list-row--new" : "list-row quote-dashboard-row";
+
+      var memoState = "";
+      if (hasMemo) memoState = newMemo ? '<span class="badge-memo badge-memo--new">새 메모</span>' : '<span class="badge-memo badge-memo--read">읽음</span>';
+      else memoState = '<span class="badge-memo badge-memo--none">메모 없음</span>';
+
+      var main = '<div class="dash-row-grid">' +
+                   '<div class="dash-cell"><div class="help-text">고객/현장</div><div class="list-row__title">' +
+                     esc(x.customer_name || "고객명 없음") + (x.site_name ? " · " + esc(x.site_name) : "") +
+                   '</div></div>' +
+                   '<div class="dash-cell"><div class="help-text">금액</div><div class="list-row__title">' + fmtMoney(x.total || 0) + '</div></div>' +
+                   '<div class="dash-cell"><div class="help-text">최근 수정</div><div class="list-row__desc">' + esc(fmtDate(x.updated_at)) + '</div></div>' +
+                   '<div class="dash-cell"><div class="help-text">최근 조회</div><div class="list-row__desc">' + esc(x.last_viewed_at ? fmtDate(x.last_viewed_at) : "-") + '</div></div>' +
+                 '</div>';
+
+      var actionHtml = '<div class="quote-status-line">' +
+                         '<span class="' + statusBadgeClass(x.status) + '">' + esc(statusLabel(x.status)) + '</span>' +
+                         memoState +
+                       '</div>';
+      actionHtml += '<div class="quote-actions-grid">';
+      actionHtml += actionSlot("view", { show: !!x.view_url, href: x.view_url, quoteId: quoteId });
+      actionHtml += actionSlot("print", { show: !!x.print_url, href: x.print_url, quoteId: quoteId });
+      actionHtml += actionSlot("요청보기", { show: hasMemo, action: "show-note", quoteId: quoteId });
+      actionHtml += actionSlot("읽음", { show: newMemo, action: "mark-read", quoteId: quoteId });
+      actionHtml += '</div>';
+
+      var node = document.createElement("div");
+      node.className = rowClass;
+      node.innerHTML =
+        '<div class="quote-dashboard-row__id"><span class="quote-id-pill' + (showFullQuoteIds ? ' quote-id-pill--full' : '') + '" title="#' + esc(quoteId) + '">#' + esc(getDisplayQuoteId(quoteId)) + '</span></div>' +
+        '<div class="quote-dashboard-row__main">' + main + '</div>' +
+        '<div class="quote-dashboard-row__actions">' + actionHtml + '</div>';
+      frag.appendChild(node);
+      if (i !== latestRows.length - 1){
+        var divider = document.createElement("div");
+        divider.className = "divider";
+        frag.appendChild(divider);
+      }
+    }
+    box.appendChild(frag);
+  }
+
+  function findRowById(quoteId){
+    var id = String(quoteId || "");
+    for (var i = 0; i < latestRows.length; i++){
+      if (String(latestRows[i].quote_id || "") === id) return latestRows[i];
+    }
+    return null;
+  }
+
+  function load(){
+    var status = $("st").value || "";
+    var query = ($("q").value || "").trim();
+    var limit = Number($("limit").value || 200);
+    if (!limit || limit < 1) limit = 200;
+    if (limit > 200) limit = 200;
+    $("limit").value = limit;
+
+    var btnSearch = $("btnSearch");
+    var reqId = ++dashboardLoadReqSeq;
+    setLoading(btnSearch, true);
+    renderSkeleton(5);
+    setStatus("조회 중...");
+
+    google.script.run
+      .withSuccessHandler(function(list){
+        if (reqId !== dashboardLoadReqSeq) return;
+        setLoading(btnSearch, false);
+        render(list || []);
+        setStatus("조회했어요.");
+      })
+      .withFailureHandler(function(err){
+        if (reqId !== dashboardLoadReqSeq) return;
+        setLoading(btnSearch, false);
+        if (handleAdminSessionExpired(err)) return;
+        setStatus("서버 오류: " + getErrMessage(err));
+        toast("조회에 실패했어요.", "error");
+      })
+      .listQuotesForDashboard(status, query, limit, pw());
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    stripSensitiveQueryParams();
+    initBentoNav();
+    if (window.AppUI) window.AppUI.enhanceSheet($("memoSheet"));
+    restorePw();
+    maybeUpgradeToSessionToken(function(){ patchNavLinks(); });
+    $("adminPw").addEventListener("input", function(){ pw(); });
+    $("btnLock").addEventListener("click", clearPw);
+    $("btnToggleQuoteIds").addEventListener("click", function(){
+      showFullQuoteIds = !showFullQuoteIds;
+      updateQuoteIdToggleLabel();
+      render(latestRows);
+    });
+    $("btnSearch").addEventListener("click", load);
+    $("q").addEventListener("keydown", function(e){ if (e.key === "Enter") load(); });
+    $("st").addEventListener("change", load);
+    $("memoSheet").addEventListener("click", function(e){
+      if (window.AppUI) return;
+      if (e.target === $("memoSheet")) closeLayerFallback($("memoSheet"));
+    });
+    var closeBtn = $("memoSheet").querySelector("[data-close-layer]");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function(){
+        if (window.AppUI && typeof window.AppUI.closeSheet === "function") {
+          window.AppUI.closeSheet($("memoSheet"));
+        } else {
+          closeLayerFallback($("memoSheet"));
+        }
+      });
+    }
+
+    $("rows").addEventListener("click", function(e){
+      var btnRead = e.target.closest("button[data-action='mark-read']");
+      if (btnRead){
+        e.preventDefault();
+        markRead(btnRead.dataset.quoteId);
+        return;
+      }
+
+      var btnMemo = e.target.closest("button[data-action='show-note']");
+      if (btnMemo){
+        e.preventDefault();
+        loadNotesHistory(btnMemo.dataset.quoteId);
+        return;
+      }
+
+      var link = e.target.closest("a[data-quote-id]");
+      if (!link) return;
+      var linked = findRowById(link.dataset.quoteId);
+      if (linked && linked.has_new_note) markRead(link.dataset.quoteId);
+    });
+
+    render([]);
+    updateQuoteIdToggleLabel();
+    setStatus("조건을 입력하고 조회를 눌러요.");
+  });
+
+  // ── 대시보드 통계 로드 ──
+  (function() {
+    var btnLoadStats = document.getElementById("btnLoadStats");
+    if (!btnLoadStats) return;
+
+    function fmtKRW(n) {
+      return Number(n || 0).toLocaleString("ko-KR") + "원";
+    }
+
+    function loadDashboardStats() {
+      if (window.AppUI) AppUI.setButtonLoading(btnLoadStats, true);
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (window.AppUI) AppUI.setButtonLoading(btnLoadStats, false);
+          if (!res || !res.ok) return;
+
+          var s = res.status_summary || {};
+          var el;
+
+          el = document.getElementById("statTotalCount");
+          if (el) el.textContent = String(s.total || 0);
+
+          el = document.getElementById("statAvgAmount");
+          if (el) el.textContent = fmtKRW(res.avg_quote_amount);
+
+          el = document.getElementById("statTopMonth");
+          if (el) el.textContent = fmtKRW(res.top_month_amount);
+
+          var conv = res.conversion || {};
+          el = document.getElementById("statConversion");
+          if (el) el.textContent = (conv.sent_to_approved_pct || 0) + "%";
+
+          var monthly = res.monthly_stats || [];
+          var chartEl = document.getElementById("monthlyChart");
+          if (!chartEl) return;
+          if (!monthly.length) {
+            chartEl.textContent = "데이터가 없어요.";
+            return;
+          }
+
+          var maxTotal = 0;
+          for (var i = 0; i < monthly.length; i++) {
+            if (monthly[i].total > maxTotal) maxTotal = monthly[i].total;
+          }
+
+          var html = '<div style="display:flex; flex-direction:column; gap:6px;">';
+          for (var j = 0; j < monthly.length; j++) {
+            var m = monthly[j];
+            var pct = maxTotal > 0 ? Math.round((m.total / maxTotal) * 100) : 0;
+            html += '<div style="display:grid; grid-template-columns:70px 1fr 100px; gap:8px; align-items:center;">';
+            html += '<div style="font:var(--font-caption); color:var(--color-text-subtle);">' + m.month + '</div>';
+            html += '<div style="height:20px; background:var(--color-warm-100,#F5F3EF); border-radius:4px; overflow:hidden;">';
+            html += '<div style="width:' + pct + '%; height:100%; background:var(--color-gold,#C4A265); border-radius:4px; transition:width 0.4s ease;"></div>';
+            html += '</div>';
+            html += '<div style="font:var(--font-caption); font-weight:600; text-align:right;">' + fmtKRW(m.total) + '</div>';
+            html += '</div>';
+          }
+          html += '</div>';
+          chartEl.innerHTML = html;
+        })
+        .withFailureHandler(function() {
+          if (window.AppUI) AppUI.setButtonLoading(btnLoadStats, false);
+        })
+        .getDashboardStats(adminCtx.pw(), { months: 6 });
+    }
+
+    btnLoadStats.addEventListener("click", loadDashboardStats);
+
+    setTimeout(function() {
+      try {
+        if (adminCtx && adminCtx.pw()) loadDashboardStats();
+      } catch (e) {}
+    }, 800);
+  })();
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,771 @@
+﻿<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top">
+  <?!= include('styles'); ?>
+  <?!= include('ui'); ?>
+  <style>
+    .tpl-list-meta{display:flex;flex-direction:column;gap:6px;min-width:240px;}
+    .tpl-list-meta .badge{margin-right:4px;}
+    .tpl-list-title{font-weight:600;color:var(--color-neutral-900);}
+    .tpl-list-sub{margin-top:4px;font:var(--font-caption);color:var(--color-neutral-600);}
+    .tpl-badge-row{display:flex;gap:6px;flex-wrap:wrap;}
+    .tpl-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;}
+    .tpl-detail-card{border:1px solid var(--color-line);border-radius:var(--radius-16);padding:14px;background:var(--color-neutral-50);}
+    .tpl-detail-card__title{font:var(--font-caption);font-weight:700;color:var(--color-neutral-700);margin-bottom:6px;}
+    .tpl-detail-card__body{font:var(--font-small);color:var(--color-neutral-900);line-height:1.5;white-space:pre-line;}
+    .tpl-detail-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  </style>
+</head>
+<body>
+  <? var U = (typeof app_url !== 'undefined' && app_url) ? String(app_url).replace(/\?.*$/, '') : ""; ?>
+  <? var PREFILL_ADMIN_PW = (typeof prefill_admin_password !== 'undefined' && prefill_admin_password) ? String(prefill_admin_password) : ""; ?>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="bentoWrap">
+        <button id="btnBentoNav" type="button" class="bentoBtn" aria-label="메뉴 열기" aria-expanded="false" aria-controls="bentoNavMenu">
+          <span class="bentoDots" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <i></i><i></i><i></i>
+            <i></i><i></i><i></i>
+          </span>
+        </button>
+        <div id="bentoNavMenu" class="nav bentoMenu">
+          <a data-page="edit" href="<?= U ?>?page=edit">견적 작성</a>
+          <a data-page="catalog" href="<?= U ?>?page=catalog">자재 카탈로그</a>
+          <a data-page="templates" href="<?= U ?>?page=templates">견적 템플릿</a>
+          <a class="active" data-page="templateslist" href="<?= U ?>?page=templateslist">템플릿 전체 목록</a>
+          <a data-page="dashboard" href="<?= U ?>?page=dashboard">대시보드</a>
+          <a data-page="materialgroups" href="<?= U ?>?page=materialgroups">자재군 매핑</a>
+        </div>
+      </div>
+      <div class="nav">
+        <a data-page="edit" href="<?= U ?>?page=edit">견적 작성</a>
+        <a data-page="catalog" href="<?= U ?>?page=catalog">자재 카탈로그</a>
+        <a data-page="templates" href="<?= U ?>?page=templates">견적 템플릿</a>
+        <a class="active" data-page="templateslist" href="<?= U ?>?page=templateslist">템플릿 목록</a>
+        <a data-page="dashboard" href="<?= U ?>?page=dashboard">대시보드</a>
+        <a data-page="materialgroups" href="<?= U ?>?page=materialgroups">자재군 매핑</a>
+      </div>
+      <div class="topbar__right">
+        <span class="badge">관리자 전용</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="card__header">
+        <h1 class="card__title">템플릿 전체 목록</h1>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button id="btnOpenTemplatesEditor" type="button" class="btn btn--primary btn--sm">템플릿 편집기</button>
+          <button id="btnLock" type="button" class="btn btn--weak btn--sm">비밀번호 지우기</button>
+        </div>
+      </div>
+      <div class="card__body">
+        <div style="max-width:400px;">
+          <label for="adminPw">관리자 비밀번호</label>
+          <input id="adminPw" type="password" placeholder="Settings의 admin_password" autocomplete="current-password">
+        </div>
+        <div id="status" class="help-text" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2 class="card__title">검색/필터</h2>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="btnSearch" type="button" class="btn btn--primary btn--sm">조회</button>
+          <div id="listMeta" class="help-text" style="white-space:nowrap;">조회 결과를 기다리고 있어요.</div>
+        </div>
+      </div>
+      <div class="card__body">
+        <div class="form-grid form-grid--4">
+          <div class="field">
+            <label for="filterCategory">카테고리</label>
+            <select id="filterCategory"></select>
+          </div>
+          <div class="field">
+            <label for="filterQuery">검색(이름/키워드)</label>
+            <input id="filterQuery" placeholder="템플릿명, 메모, 메타 태그 검색">
+          </div>
+          <div class="field">
+            <label for="filterTemplateType">용도</label>
+            <select id="filterTemplateType">
+              <option value="">전체</option>
+              <option value="QUOTE_ONLY">실견적 전용</option>
+              <option value="PREQUOTE_PACKAGE">가견적 패키지</option>
+              <option value="BOTH">공용</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filterExposeToPrequote">가견적 노출</label>
+            <select id="filterExposeToPrequote">
+              <option value="">전체</option>
+              <option value="Y">노출</option>
+              <option value="N">비노출</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filterHousingType">주택 유형</label>
+            <select id="filterHousingType">
+              <option value="">전체</option>
+              <option value="ALL">전체</option>
+              <option value="APARTMENT">아파트</option>
+              <option value="HOUSE">주택</option>
+              <option value="VILLA">빌라</option>
+              <option value="OFFICETEL">오피스텔</option>
+              <option value="COMMERCIAL">상업공간</option>
+              <option value="OFFICE">사무공간</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="filterAreaBand">평형대</label>
+            <select id="filterAreaBand">
+              <option value="">전체</option>
+              <option value="ALL">전체</option>
+              <option value="UNDER_20">20평 미만</option>
+              <option value="20_29">20평대</option>
+              <option value="30_39">30평대</option>
+              <option value="40_49">40평대</option>
+              <option value="50_PLUS">50평 이상</option>
+            </select>
+          </div>
+          <div class="field" style="display:flex; align-items:flex-end;">
+            <label style="display:inline-flex; align-items:center; gap:8px; margin:0;">
+              <input id="includeInactive" type="checkbox" style="width:auto;">
+              비활성 포함
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__header">
+        <h2 class="card__title">템플릿 목록</h2>
+      </div>
+      <div class="card__body">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>카테고리</th>
+                <th>템플릿명</th>
+                <th>유형</th>
+                <th>가견적 메타</th>
+                <th>최신 버전</th>
+                <th>항목 수</th>
+                <th>수정일</th>
+                <th>상태</th>
+                <th>동작</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div id="detailModal" class="modal-host" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle" style="width:min(980px,100%);">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <h3 id="detailTitle" style="margin:0;">템플릿 버전 이력</h3>
+          <button id="btnCloseDetail" type="button" class="btn btn--weak btn--sm" data-close-layer="1">닫기</button>
+        </div>
+        <div class="help-text" id="detailMeta" style="margin-top:8px;"></div>
+        <div id="detailMetaSummary" class="tpl-detail-grid"></div>
+        <div class="tableWrap" style="margin-top:10px;">
+          <table>
+            <thead>
+              <tr>
+                <th>버전</th>
+                <th>생성일</th>
+                <th>생성자</th>
+                <th>항목 수</th>
+              </tr>
+            </thead>
+            <tbody id="versionRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var APP_URL = "<?= String(U || '') ?>";
+  var SERVER_PREFILL_ADMIN_PW = decodeURIComponent("<?= encodeURIComponent(String(PREFILL_ADMIN_PW || '')) ?>");
+  var PW_KEY = "QUOTEAPP_ADMINPW_V1";
+  var TEMPLATE_LIST_VER = "<?= String(getTemplateListVersion_()) ?>";
+  var categoryCache = Object.create(null);
+  var listCache = Object.create(null);
+  var templateListReqSeq = 0;
+  var TEMPLATE_TYPE_LABELS = {
+    QUOTE_ONLY: "실견적 전용",
+    PREQUOTE_PACKAGE: "가견적 패키지",
+    BOTH: "공용"
+  };
+  var HOUSING_TYPE_LABELS = {
+    ALL: "전체",
+    APARTMENT: "아파트",
+    HOUSE: "주택",
+    VILLA: "빌라",
+    OFFICETEL: "오피스텔",
+    COMMERCIAL: "상업공간",
+    OFFICE: "사무공간"
+  };
+  var AREA_BAND_LABELS = {
+    ALL: "전체",
+    UNDER_20: "20평 미만",
+    "20_29": "20평대",
+    "30_39": "30평대",
+    "40_49": "40평대",
+    "50_PLUS": "50평 이상"
+  };
+  var BUDGET_BAND_LABELS = {
+    ANY: "전체",
+    ENTRY: "엔트리",
+    MID: "중간",
+    PREMIUM: "프리미엄",
+    HIGH_END: "하이엔드"
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function setStatus(msg){ $("status").innerText = msg || ""; }
+  function setListMeta(msg){ $("listMeta").innerText = msg || ""; }
+  function toast(msg, type){
+    if (!msg || !window.AppUI) return;
+    window.AppUI.toast(msg, { type: type || "", position: "bottom" });
+  }
+  function openLayerFallback(host){
+    if (!host) return;
+    host.style.display = "flex";
+    host.classList.add("is-open");
+    host.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+  function closeLayerFallback(host){
+    if (!host) return;
+    host.style.display = "none";
+    host.classList.remove("is-open");
+    host.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  var adminCtx = (window.AppShared && typeof window.AppShared.createAdminContext === "function")
+    ? window.AppShared.createAdminContext({
+        appUrl: APP_URL,
+        prefillAdminPw: SERVER_PREFILL_ADMIN_PW,
+        pwKey: PW_KEY,
+        adminInputId: "adminPw",
+        setStatus: setStatus
+      })
+    : null;
+  if (adminCtx && adminCtx.appUrl) APP_URL = adminCtx.appUrl;
+
+  function normalizeBaseUrl(u){ return adminCtx ? adminCtx.normalizeBaseUrl(u) : String(u || "").trim(); }
+  function resolveAppUrl(){ return adminCtx ? adminCtx.resolveAppUrl(APP_URL) : APP_URL; }
+  APP_URL = resolveAppUrl();
+  function getErrMessage(err){ return adminCtx ? adminCtx.getErrMessage(err) : ((err && err.message) ? String(err.message) : String(err || "")); }
+  function isSessionToken(v){ return adminCtx ? adminCtx.isSessionToken(v) : (String(v || "").trim().indexOf("AS_") === 0); }
+  function getStoredCred(){ return adminCtx ? adminCtx.getStoredCred() : ""; }
+  function setStoredCred(v){ if (adminCtx) adminCtx.setStoredCred(v); }
+  function clearStoredCred(){ if (adminCtx) adminCtx.clearStoredCred(); }
+  function currentCred(){ return adminCtx ? adminCtx.currentCred() : String(($("adminPw") && $("adminPw").value) || "").trim(); }
+  function appendAdminAuthParam(url, token){ return adminCtx ? adminCtx.appendAdminAuthParam(url, token) : String(url || ""); }
+  function pageUrl(page){ return adminCtx ? adminCtx.pageUrl(page) : (APP_URL + "?page=" + encodeURIComponent(String(page || "edit"))); }
+  function patchNavLinks(){ if (adminCtx) adminCtx.patchNavLinks(); }
+  function initBentoNav(){
+    var btn = $("btnBentoNav");
+    var menu = $("bentoNavMenu");
+    if (!btn || !menu) return;
+
+    function closeMenu(){
+      menu.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+    function toggleMenu(){
+      var open = menu.classList.toggle("open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    btn.addEventListener("click", function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+    });
+    document.addEventListener("click", function(e){
+      if (!menu.classList.contains("open")) return;
+      if (menu.contains(e.target) || btn.contains(e.target)) return;
+      closeMenu();
+    });
+    document.addEventListener("keydown", function(e){
+      if (e.key === "Escape") closeMenu();
+    });
+    var links = menu.querySelectorAll("a[data-page]");
+    for (var i = 0; i < links.length; i++){
+      links[i].addEventListener("click", closeMenu);
+    }
+  }
+
+  function setLoading(btn, on){
+    if (!btn) return;
+    btn.disabled = !!on;
+    btn.classList.toggle("loading", !!on);
+  }
+  function runWithLoading(btn, fn){
+    if (!btn) return fn(function(){});
+    var doneCalled = false;
+    setLoading(btn, true);
+    function done(){
+      if (doneCalled) return;
+      doneCalled = true;
+      setLoading(btn, false);
+    }
+    try { fn(done); } catch (e){ done(); throw e; }
+  }
+  function showErr(prefix, err){
+    if (handleAdminSessionExpired(err)) return;
+    var msg = getErrMessage(err);
+    setStatus((prefix ? (prefix + " ") : "") + msg);
+  }
+
+  function handleAdminSessionExpired(err){ return adminCtx ? adminCtx.handleAdminSessionExpired(err) : false; }
+
+  function pw(){ return adminCtx ? adminCtx.pw() : String(($("adminPw") && $("adminPw").value) || "").trim(); }
+  function stripSensitiveQueryParams(){ if (adminCtx) adminCtx.stripSensitiveQueryParams(); }
+  function restorePw(){ if (adminCtx) adminCtx.restorePw(); }
+  function maybeUpgradeToSessionToken(onDone){
+    if (adminCtx) return adminCtx.maybeUpgradeToSessionToken(onDone);
+    if (typeof onDone === "function") onDone();
+  }
+  function clearPw(silent){ if (adminCtx) adminCtx.clearPw(silent); }
+
+  function categoryCacheKey(includeInactive){
+    return String(includeInactive ? "1" : "0");
+  }
+  function templateListCacheKey(category, query, includeInactive, filters){
+    var f = filters || {};
+    return [
+      TEMPLATE_LIST_VER,
+      String(category || ""),
+      String(query || "").toLowerCase(),
+      includeInactive ? "1" : "0",
+      String(f.template_type || ""),
+      String(f.expose_to_prequote || ""),
+      String(f.housing_type || ""),
+      String(f.area_band || "")
+    ].join("::");
+  }
+  function initCategorySelectPlaceholder_(){
+    var sel = $("filterCategory");
+    if (!sel) return;
+    sel.innerHTML = "";
+    var opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "전체";
+    sel.appendChild(opt);
+  }
+  function fillCategorySelect(list){
+    var sel = $("filterCategory");
+    var cur = String(sel.value || "");
+    sel.innerHTML = "";
+    var all = document.createElement("option");
+    all.value = "";
+    all.textContent = "전체";
+    sel.appendChild(all);
+    (list || []).forEach(function(x){
+      var o = document.createElement("option");
+      o.value = x.category || "";
+      o.textContent = (x.category || "") + " (" + Number(x.count || 0) + ")";
+      sel.appendChild(o);
+    });
+    if (cur) sel.value = cur;
+  }
+
+  function labelFor(map, value){
+    var key = String(value || "").trim();
+    return map[key] || key || "-";
+  }
+
+  function splitSummaryTokens(value, limit){
+    var parts = String(value || "").split(/[,\n;|\/]+/);
+    var out = [];
+    var seen = Object.create(null);
+    for (var i = 0; i < parts.length; i++){
+      var token = String(parts[i] || "").trim();
+      if (!token || seen[token]) continue;
+      seen[token] = 1;
+      out.push(token);
+      if (limit && out.length >= limit) break;
+    }
+    return out;
+  }
+
+  function createBadgeEl(text, cls){
+    var el = document.createElement("span");
+    el.className = "badge" + (cls ? (" " + cls) : "");
+    el.textContent = text || "";
+    return el;
+  }
+
+  function collectListFilters(){
+    return {
+      template_type: String(($("filterTemplateType") && $("filterTemplateType").value) || "").trim(),
+      expose_to_prequote: String(($("filterExposeToPrequote") && $("filterExposeToPrequote").value) || "").trim(),
+      housing_type: String(($("filterHousingType") && $("filterHousingType").value) || "").trim(),
+      area_band: String(($("filterAreaBand") && $("filterAreaBand").value) || "").trim()
+    };
+  }
+
+  function loadCategories(btn, onDone){
+    var includeInactive = $("includeInactive").checked;
+    var key = categoryCacheKey(includeInactive);
+    if (Object.prototype.hasOwnProperty.call(categoryCache, key)) {
+      fillCategorySelect(categoryCache[key] || []);
+      if (typeof onDone === "function") onDone();
+      return;
+    }
+
+    runWithLoading(btn, function(done){
+      google.script.run
+        .withSuccessHandler(function(list){
+          done();
+          var out = Array.isArray(list) ? list : [];
+          categoryCache[key] = out;
+          fillCategorySelect(out);
+          if (typeof onDone === "function") onDone();
+        })
+        .withFailureHandler(function(err){
+          done();
+          showErr("카테고리 조회에 실패했어요:", err);
+          if (typeof onDone === "function") onDone();
+        })
+        .listTemplateCategories(pw(), includeInactive);
+    });
+  }
+
+  function closeDetailModal(){
+    if (window.AppUI && typeof window.AppUI.closeModal === "function") {
+      window.AppUI.closeModal($("detailModal"));
+    } else {
+      closeLayerFallback($("detailModal"));
+    }
+  }
+
+  function renderRows(list){
+    var body = $("rows");
+    body.innerHTML = "";
+    var arr = Array.isArray(list) ? list : [];
+
+    if (!arr.length){
+      var tr0 = document.createElement("tr");
+      var td0 = document.createElement("td");
+      td0.colSpan = 9;
+      td0.className = "muted";
+      td0.innerText = "템플릿이 없어요.";
+      tr0.appendChild(td0);
+      body.appendChild(tr0);
+      setListMeta("0건");
+      return;
+    }
+
+    function td(v){
+      var n = document.createElement("td");
+      n.textContent = (v === null || v === undefined) ? "" : String(v);
+      return n;
+    }
+
+    var frag = document.createDocumentFragment();
+
+    for (var i = 0; i < arr.length; i++){
+      var t = arr[i] || {};
+      var tr = document.createElement("tr");
+      var tdName = document.createElement("td");
+      tdName.innerHTML =
+        '<div class="tpl-list-title">' + String(t.template_name || "").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</div>' +
+        '<div class="tpl-list-sub">' + String(t.note || "").replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</div>';
+      var tdType = document.createElement("td");
+      tdType.appendChild(createBadgeEl(labelFor(TEMPLATE_TYPE_LABELS, t.template_type || "QUOTE_ONLY"), t.template_type === "PREQUOTE_PACKAGE" || t.template_type === "BOTH" ? "badge--pending" : ""));
+      var tdMeta = document.createElement("td");
+      tdMeta.className = "tpl-list-meta";
+      var row1 = document.createElement("div");
+      row1.className = "tpl-badge-row";
+      row1.appendChild(createBadgeEl(labelFor(HOUSING_TYPE_LABELS, t.housing_type || "ALL")));
+      row1.appendChild(createBadgeEl(labelFor(AREA_BAND_LABELS, t.area_band || "ALL")));
+      row1.appendChild(createBadgeEl(labelFor(BUDGET_BAND_LABELS, t.budget_band || "ANY")));
+      if (t.is_featured_prequote) row1.appendChild(createBadgeEl("대표 패키지", "badge--pending"));
+      tdMeta.appendChild(row1);
+      var row2 = document.createElement("div");
+      row2.className = "tpl-badge-row";
+      if (t.expose_to_prequote) row2.appendChild(createBadgeEl("가견적 노출", "badge--success"));
+      row2.appendChild(createBadgeEl("우선순위 " + Number(t.prequote_priority || 0)));
+      splitSummaryTokens(t.style_tags_summary, 2).forEach(function(tag){
+        row2.appendChild(createBadgeEl("스타일 " + tag));
+      });
+      splitSummaryTokens(t.tone_tags_summary, 2).forEach(function(tag){
+        row2.appendChild(createBadgeEl("톤 " + tag));
+      });
+      splitSummaryTokens(t.trade_scope_summary, 2).forEach(function(tag){
+        row2.appendChild(createBadgeEl("공정 " + tag));
+      });
+      tdMeta.appendChild(row2);
+      var row3 = document.createElement("div");
+      row3.className = "tpl-list-sub";
+      row3.textContent = String(t.recommended_for_summary || t.target_customer_summary || t.recommendation_note || "").trim();
+      tdMeta.appendChild(row3);
+
+      tr.appendChild(td(t.category || ""));
+      tr.appendChild(tdName);
+      tr.appendChild(tdType);
+      tr.appendChild(tdMeta);
+      tr.appendChild(td("v" + Number(t.latest_version || 0)));
+      tr.appendChild(td(Number(t.latest_item_count || 0)));
+      tr.appendChild(td(t.updated_at || ""));
+      tr.appendChild(td((t.is_active ? "활성" : "비활성") + (t.expose_to_prequote ? " / 노출" : " / 비노출")));
+
+      var tdAct = document.createElement("td");
+      tdAct.style.whiteSpace = "nowrap";
+
+      var btnOpen = document.createElement("button");
+      btnOpen.type = "button";
+      btnOpen.className = "btn btn--weak btn--sm";
+      btnOpen.innerText = "열기";
+      btnOpen.onclick = (function(templateId){
+        return function(){
+          var url = appendAdminAuthParam(
+            pageUrl("templates") + "&template_id=" + encodeURIComponent(String(templateId || "")),
+            currentCred()
+          );
+          window.open(url, "_blank", "noopener,noreferrer");
+        };
+      })(String(t.template_id || ""));
+
+      var btnVer = document.createElement("button");
+      btnVer.type = "button";
+      btnVer.className = "btn btn--weak btn--sm";
+      btnVer.style.marginLeft = "6px";
+      btnVer.innerText = "버전";
+      btnVer.onclick = (function(templateId){
+        return function(){ openDetail(templateId); };
+      })(String(t.template_id || ""));
+
+      var btnDel = document.createElement("button");
+      btnDel.type = "button";
+      btnDel.className = "btn btn--weak btn--sm danger";
+      btnDel.style.marginLeft = "6px";
+      btnDel.innerText = "삭제";
+      btnDel.onclick = (function(templateId, templateName, btnEl){
+        return function(){
+          var tid = String(templateId || "").trim();
+          if (!tid) return;
+          var msg = "이 템플릿을 완전히 삭제할까요?\n삭제하면 복구할 수 없어요.";
+          if (templateName) msg += "\n\n대상: " + templateName;
+          if (!confirm(msg)) return;
+
+          runWithLoading(btnEl, function(done){
+            google.script.run
+              .withSuccessHandler(function(res){
+                done();
+                categoryCache = Object.create(null);
+                listCache = Object.create(null);
+                closeDetailModal();
+                setStatus("삭제했어요. (버전 " + Number(res && res.deleted_versions || 0) + "개)");
+                toast("템플릿을 삭제했어요.", "success");
+                runSearch($("btnSearch"));
+              })
+              .withFailureHandler(function(err){
+                done();
+                showErr("템플릿 삭제에 실패했어요:", err);
+                toast("템플릿을 삭제하지 못했어요.", "error");
+              })
+              .deleteTemplate(tid, pw());
+          });
+        };
+      })(String(t.template_id || ""), String(t.template_name || ""), btnDel);
+
+      tdAct.appendChild(btnOpen);
+      tdAct.appendChild(btnVer);
+      tdAct.appendChild(btnDel);
+      tr.appendChild(tdAct);
+      frag.appendChild(tr);
+    }
+    body.appendChild(frag);
+
+    setListMeta("총 " + arr.length + "건");
+  }
+
+  function loadTemplateList(btn){
+    var category = $("filterCategory").value || "";
+    var query = String($("filterQuery").value || "").trim();
+    var includeInactive = $("includeInactive").checked;
+    var filters = collectListFilters();
+    var key = templateListCacheKey(category, query, includeInactive, filters);
+
+    if (Object.prototype.hasOwnProperty.call(listCache, key)){
+      renderRows(listCache[key] || []);
+      setStatus("캐시에서 불러왔어요.");
+      return;
+    }
+
+    var reqId = ++templateListReqSeq;
+    runWithLoading(btn, function(done){
+      google.script.run
+        .withSuccessHandler(function(list){
+          done();
+          if (reqId !== templateListReqSeq) return;
+          var out = Array.isArray(list) ? list : [];
+          listCache[key] = out;
+          renderRows(out);
+          setStatus("조회했어요.");
+        })
+        .withFailureHandler(function(err){
+          done();
+          if (reqId !== templateListReqSeq) return;
+          showErr("템플릿 목록 조회에 실패했어요:", err);
+          toast("조회에 실패했어요.", "error");
+        })
+        .listTemplateCatalog(category, query, includeInactive, pw(), filters);
+    });
+  }
+
+  function runSearch(btn){
+    var adminPw = pw();
+    if (!adminPw){
+      setStatus("관리자 비밀번호를 입력해요.");
+      if ($("adminPw")) $("adminPw").focus();
+      return;
+    }
+    loadCategories(btn, function(){ loadTemplateList(btn); });
+  }
+
+  function openDetail(templateId){
+    var tid = String(templateId || "").trim();
+    if (!tid){
+      setStatus("template_id가 없어요.");
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(detail){
+        var d = detail || {};
+        var t = d.template || {};
+        var meta = t.template_meta || d.template_meta || t;
+        var versions = Array.isArray(d.versions) ? d.versions : [];
+        $("detailTitle").innerText = (t.template_name || "템플릿") + " - 버전 이력";
+        $("detailMeta").innerText =
+          "카테고리: " + (t.category || "") +
+          " / 상태: " + (t.is_active ? "활성" : "비활성") +
+          " / 최신 v" + Number(t.latest_version || 0);
+        var summary = $("detailMetaSummary");
+        summary.innerHTML = "";
+        [
+          { title: "기본 메타", body: [labelFor(TEMPLATE_TYPE_LABELS, meta.template_type || "QUOTE_ONLY"), labelFor(HOUSING_TYPE_LABELS, meta.housing_type || "ALL"), labelFor(AREA_BAND_LABELS, meta.area_band || "ALL"), labelFor(BUDGET_BAND_LABELS, meta.budget_band || "ANY")].join(" / ") },
+          { title: "스타일/톤/공정", body: [meta.style_tags_summary || "-", meta.tone_tags_summary || "-", meta.trade_scope_summary || "-"].join("\n") },
+          { title: "운영 메모", body: [meta.target_customer_summary || "-", meta.recommended_for_summary || "-", meta.recommendation_note || "-"].join("\n") }
+        ].forEach(function(card){
+          var box = document.createElement("div");
+          box.className = "tpl-detail-card";
+          var title = document.createElement("div");
+          title.className = "tpl-detail-card__title";
+          title.textContent = card.title;
+          var bodyNode = document.createElement("div");
+          bodyNode.className = "tpl-detail-card__body";
+          bodyNode.textContent = card.body;
+          box.appendChild(title);
+          box.appendChild(bodyNode);
+          var badgeRow = document.createElement("div");
+          badgeRow.className = "tpl-detail-badges";
+          if (card.title === "기본 메타") {
+            badgeRow.appendChild(createBadgeEl(meta.expose_to_prequote ? "가견적 노출" : "가견적 비노출", meta.expose_to_prequote ? "badge--success" : ""));
+            badgeRow.appendChild(createBadgeEl("우선순위 " + Number(meta.prequote_priority || 0)));
+            if (meta.is_featured_prequote) badgeRow.appendChild(createBadgeEl("대표 패키지", "badge--pending"));
+          }
+          if (badgeRow.childNodes.length) box.appendChild(badgeRow);
+          summary.appendChild(box);
+        });
+
+        var body = $("versionRows");
+        body.innerHTML = "";
+        if (!versions.length){
+          var tr0 = document.createElement("tr");
+          var td0 = document.createElement("td");
+          td0.colSpan = 4;
+          td0.className = "muted";
+          td0.innerText = "버전 이력이 없어요.";
+          tr0.appendChild(td0);
+          body.appendChild(tr0);
+        } else {
+          for (var i = 0; i < versions.length; i++){
+            var v = versions[i] || {};
+            var tr = document.createElement("tr");
+            function td(text){
+              var n = document.createElement("td");
+              n.innerText = text || "";
+              return n;
+            }
+            tr.appendChild(td("v" + Number(v.version || 0)));
+            tr.appendChild(td(v.created_at || ""));
+            tr.appendChild(td(v.created_by || ""));
+            tr.appendChild(td(String(Number(v.item_count || 0))));
+            body.appendChild(tr);
+          }
+        }
+
+        if (window.AppUI && typeof window.AppUI.openModal === "function") {
+          window.AppUI.openModal($("detailModal"));
+        } else {
+          openLayerFallback($("detailModal"));
+        }
+      })
+      .withFailureHandler(function(err){
+        showErr("버전 이력 조회에 실패했어요:", err);
+      })
+      .getTemplateDetail(tid, pw());
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    stripSensitiveQueryParams();
+    initBentoNav();
+    if (window.AppUI) window.AppUI.enhanceModal($("detailModal"));
+    restorePw();
+    maybeUpgradeToSessionToken(function(){ patchNavLinks(); });
+    initCategorySelectPlaceholder_();
+
+    $("adminPw").addEventListener("input", function(){ pw(); });
+    $("btnLock").addEventListener("click", clearPw);
+    $("btnSearch").addEventListener("click", function(){ runSearch($("btnSearch")); });
+    $("btnOpenTemplatesEditor").addEventListener("click", function(){
+      window.open(appendAdminAuthParam(pageUrl("templates"), currentCred()), "_blank", "noopener,noreferrer");
+    });
+
+    $("filterCategory").addEventListener("change", function(){ setStatus("조건이 바뀌었어요. 조회 버튼을 눌러요."); });
+    $("filterTemplateType").addEventListener("change", function(){ setStatus("조건이 바뀌었어요. 조회 버튼을 눌러요."); });
+    $("filterExposeToPrequote").addEventListener("change", function(){ setStatus("조건이 바뀌었어요. 조회 버튼을 눌러요."); });
+    $("filterHousingType").addEventListener("change", function(){ setStatus("조건이 바뀌었어요. 조회 버튼을 눌러요."); });
+    $("filterAreaBand").addEventListener("change", function(){ setStatus("조건이 바뀌었어요. 조회 버튼을 눌러요."); });
+    $("includeInactive").addEventListener("change", function(){
+      categoryCache = Object.create(null);
+      listCache = Object.create(null);
+      setStatus("조건이 바뀌었어요. 조회 버튼을 눌러요.");
+    });
+    $("filterQuery").addEventListener("keydown", function(e){
+      if (e.key === "Enter") runSearch($("btnSearch"));
+    });
+
+    $("btnCloseDetail").addEventListener("click", closeDetailModal);
+    $("detailModal").addEventListener("click", function(e){
+      if (window.AppUI) return;
+      if (e.target === $("detailModal")) closeDetailModal();
+    });
+
+    setStatus("관리자 비밀번호를 입력하고 조회를 눌러요.");
+    renderRows([]);
+  });
+})();
+</script>
+</body>
+</html>
+

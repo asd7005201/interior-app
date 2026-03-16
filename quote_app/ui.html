@@ -1,0 +1,563 @@
+﻿<script>
+(function (window, document) {
+  if (window.AppUI) return;
+
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  var OPEN_LAYERS = [];
+
+  function toArray(list) {
+    return Array.prototype.slice.call(list || []);
+  }
+
+  function isHidden(el) {
+    if (!el) return true;
+    return el.offsetParent === null && getComputedStyle(el).position !== "fixed";
+  }
+
+  function getFocusable(root) {
+    if (!root) return [];
+    return toArray(root.querySelectorAll(FOCUSABLE)).filter(function (el) {
+      return !isHidden(el);
+    });
+  }
+
+  function firstPanel(host) {
+    if (!host) return null;
+    return host.querySelector('.modal, .bottom-sheet, [data-layer-panel]') || host.firstElementChild;
+  }
+
+  function bindLayerEvents(host) {
+    if (!host || host.__appUiBound) return;
+    host.__appUiBound = true;
+
+    host.addEventListener("click", function (e) {
+      if (e.target === host) {
+        closeLayer(host);
+      }
+    });
+
+    host.addEventListener("click", function (e) {
+      var closeBtn = e.target.closest('[data-close-layer]');
+      if (!closeBtn) return;
+      closeLayer(host);
+    });
+
+    host.addEventListener("keydown", function (e) {
+      if (!host.classList.contains("is-open")) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeLayer(host);
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      var panel = firstPanel(host) || host;
+      var focusables = getFocusable(panel);
+      if (!focusables.length) {
+        e.preventDefault();
+        panel.setAttribute("tabindex", "-1");
+        panel.focus();
+        return;
+      }
+
+      var first = focusables[0];
+      var last = focusables[focusables.length - 1];
+      var active = document.activeElement;
+
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
+  function enhanceLayer(host, type) {
+    if (!host) return;
+    host.classList.add("modal-host");
+    if (type === "sheet") host.classList.add("modal-host--sheet");
+
+    var panel = firstPanel(host);
+    if (panel) {
+      if (type === "sheet") {
+        panel.classList.add("bottom-sheet");
+      } else {
+        panel.classList.add("modal");
+      }
+      if (!panel.hasAttribute("role")) panel.setAttribute("role", "dialog");
+      if (!panel.hasAttribute("aria-modal")) panel.setAttribute("aria-modal", "true");
+    }
+
+    if (!host.hasAttribute("aria-hidden")) host.setAttribute("aria-hidden", "true");
+    bindLayerEvents(host);
+  }
+
+  function syncBodyLock() {
+    document.body.style.overflow = OPEN_LAYERS.length ? "hidden" : "";
+  }
+
+  function openLayer(host, type) {
+    if (!host) return;
+    enhanceLayer(host, type);
+
+    if (OPEN_LAYERS.indexOf(host) < 0) OPEN_LAYERS.push(host);
+
+    host.__appUiPrevFocus = document.activeElement;
+    host.style.display = "";
+    host.setAttribute("aria-hidden", "false");
+    host.classList.add("is-open");
+    syncBodyLock();
+
+    var panel = firstPanel(host);
+    setTimeout(function () {
+      var focusables = getFocusable(panel || host);
+      if (focusables.length) {
+        focusables[0].focus();
+      } else if (panel) {
+        panel.setAttribute("tabindex", "-1");
+        panel.focus();
+      }
+    }, 20);
+  }
+
+  function closeLayer(host) {
+    if (!host) return;
+    host.classList.remove("is-open");
+    host.setAttribute("aria-hidden", "true");
+    host.style.display = "none";
+
+    var idx = OPEN_LAYERS.indexOf(host);
+    if (idx >= 0) OPEN_LAYERS.splice(idx, 1);
+    syncBodyLock();
+
+    var prev = host.__appUiPrevFocus;
+    if (prev && typeof prev.focus === "function") {
+      setTimeout(function () {
+        try {
+          prev.focus();
+        } catch (e) {}
+      }, 0);
+    }
+  }
+
+  function ensureToastStack(position) {
+    var pos = position === "top" ? "top" : "bottom";
+    var id = "appUiToastStack_" + pos;
+    var stack = document.getElementById(id);
+    if (stack) return stack;
+
+    stack = document.createElement("div");
+    stack.id = id;
+    stack.className = "toast-stack toast-stack--" + pos;
+    stack.style.width = "auto";
+    stack.style.maxWidth = "calc(100vw - 24px)";
+    stack.style.alignItems = "center";
+    stack.setAttribute("aria-live", "polite");
+    stack.setAttribute("aria-atomic", "true");
+    document.body.appendChild(stack);
+    return stack;
+  }
+
+  function toast(message, options) {
+    var opts = options || {};
+    var text = String(message || "").trim();
+    if (!text) return;
+
+    var stack = ensureToastStack(opts.position);
+    var node = document.createElement("div");
+    var type = String(opts.type || "").toLowerCase();
+    node.className = "toast" + (type ? " toast--" + type : "");
+    node.style.display = "inline-flex";
+    node.style.alignSelf = "center";
+    node.style.width = "fit-content";
+    node.style.maxWidth = "calc(100vw - 24px)";
+    node.style.whiteSpace = "normal";
+    node.textContent = text;
+    stack.appendChild(node);
+
+    requestAnimationFrame(function () {
+      node.classList.add("is-open");
+    });
+
+    var duration = Number(opts.duration || 2200);
+    if (duration < 900) duration = 900;
+
+    setTimeout(function () {
+      node.classList.remove("is-open");
+      setTimeout(function () {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      }, 200);
+    }, duration);
+  }
+
+  function setButtonLoading(button, loading) {
+    if (!button) return;
+    var on = !!loading;
+    if (on) {
+      button.classList.add("is-loading");
+      button.classList.add("loading");
+      button.disabled = true;
+      return;
+    }
+    button.classList.remove("is-loading");
+    button.classList.remove("loading");
+    button.disabled = false;
+  }
+
+  function baseConfirm(opts, isAlert) {
+    var options = opts || {};
+    return new Promise(function (resolve) {
+      var host = document.createElement("div");
+      host.className = "modal-host";
+      host.setAttribute("aria-hidden", "true");
+
+      var panel = document.createElement("div");
+      panel.className = "modal";
+      panel.style.width = "min(420px, 100%)";
+      panel.innerHTML =
+        '<h3 style="margin:0 0 8px;">' + (options.title || "안내") + '</h3>' +
+        '<p class="muted" style="margin:0 0 16px;">' + (options.message || "") + '</p>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px;">' +
+          (isAlert ? "" : '<button type="button" class="btn btn--weak" data-action="cancel">취소</button>') +
+          '<button type="button" class="btn btn--primary" data-action="ok">확인</button>' +
+        '</div>';
+
+      host.appendChild(panel);
+      document.body.appendChild(host);
+      enhanceLayer(host, "modal");
+      openLayer(host, "modal");
+
+      function cleanup(answer) {
+        closeLayer(host);
+        setTimeout(function () {
+          if (host.parentNode) host.parentNode.removeChild(host);
+        }, 180);
+        resolve(answer);
+      }
+
+      panel.addEventListener("click", function (e) {
+        var action = e.target.getAttribute("data-action");
+        if (action === "ok") cleanup(true);
+        if (action === "cancel") cleanup(false);
+      });
+
+      host.addEventListener("click", function (e) {
+        if (e.target === host) cleanup(false);
+      });
+    });
+  }
+
+  window.AppUI = {
+    toast: toast,
+    setButtonLoading: setButtonLoading,
+    enhanceLayer: enhanceLayer,
+    enhanceModal: function (host) { enhanceLayer(host, "modal"); },
+    enhanceSheet: function (host) { enhanceLayer(host, "sheet"); },
+    openModal: function (host) { openLayer(host, "modal"); },
+    closeModal: closeLayer,
+    openSheet: function (host) { openLayer(host, "sheet"); },
+    closeSheet: closeLayer,
+    confirm: function (opts) { return baseConfirm(opts, false); },
+    alert: function (opts) { return baseConfirm(opts, true); }
+  };
+
+  function normalizeExecBaseUrl(u) {
+    var s = String(u || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\/[^\/]*script\.googleusercontent\.com\//i.test(s)) return "";
+    var q = s.indexOf("?");
+    if (q >= 0) s = s.slice(0, q);
+    var h = s.indexOf("#");
+    if (h >= 0) s = s.slice(0, h);
+    s = s.replace(/\/+$/, "");
+    if (/\/(exec|dev)$/i.test(s)) return s;
+    if (/\/userCodeAppPanel$/i.test(s)) return s.replace(/\/userCodeAppPanel$/i, "/exec");
+    return "";
+  }
+
+  function resolveExecBaseUrl(appUrl) {
+    var fromLoc = normalizeExecBaseUrl(window.location.origin + window.location.pathname);
+    if (fromLoc) return fromLoc;
+    var fromTpl = normalizeExecBaseUrl(appUrl);
+    if (fromTpl) return fromTpl;
+    if (/\/userCodeAppPanel$/i.test(window.location.pathname)) {
+      return (window.location.origin + window.location.pathname).replace(/\/userCodeAppPanel$/i, "/exec");
+    }
+    return "";
+  }
+
+  function getDefaultErrMessage(err) {
+    return (err && err.message) ? String(err.message) : String(err || "");
+  }
+
+  var lazyImageObserver = null;
+  function ensureLazyImageObserver() {
+    if (lazyImageObserver || !("IntersectionObserver" in window)) return lazyImageObserver;
+    lazyImageObserver = new IntersectionObserver(function(entries) {
+      for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i];
+        if (!entry || !entry.isIntersecting) continue;
+        var img = entry.target;
+        lazyImageObserver.unobserve(img);
+        var primary = String(img.dataset.appImgPrimary || "");
+        if (!primary) continue;
+        delete img.dataset.fallbackApplied;
+        img.onerror = function() {
+          var fb = String(this.dataset.appImgFallback || "");
+          if (this.dataset.fallbackApplied || !fb) return;
+          this.dataset.fallbackApplied = "1";
+          this.src = fb;
+        };
+        img.src = primary;
+      }
+    }, { rootMargin: "220px 0px", threshold: 0.01 });
+    return lazyImageObserver;
+  }
+
+  function applyImageSourceShared(imgEl, fileId, options) {
+    if (!imgEl) return;
+    var id = String(fileId || "").trim();
+    if (!id) {
+      imgEl.removeAttribute("src");
+      imgEl.style.display = "none";
+      delete imgEl.dataset.fallbackApplied;
+      delete imgEl.dataset.appImgPrimary;
+      delete imgEl.dataset.appImgFallback;
+      return;
+    }
+
+    var opts = options || {};
+    var appUrl = resolveExecBaseUrl(opts.appUrl);
+    var imgPage = String(opts.page || "img");
+    var size = Number(opts.size || 600);
+    if (!size || size < 200) size = 600;
+    var version = String(opts.version || "").trim();
+
+    var primary = appUrl
+      ? (appUrl + "?page=" + encodeURIComponent(imgPage) + "&fileId=" + encodeURIComponent(id) + (version ? ("&v=" + encodeURIComponent(version)) : ""))
+      : "";
+    var fallback = "https://drive.google.com/thumbnail?id=" + encodeURIComponent(id) + "&sz=w" + String(size);
+
+    imgEl.dataset.appImgPrimary = primary || fallback;
+    imgEl.dataset.appImgFallback = fallback;
+    imgEl.loading = "lazy";
+    imgEl.style.display = "inline-block";
+
+    if (opts.lazy !== false && ensureLazyImageObserver()) {
+      ensureLazyImageObserver().observe(imgEl);
+      return;
+    }
+
+    delete imgEl.dataset.fallbackApplied;
+    imgEl.onerror = function() {
+      var fb = String(this.dataset.appImgFallback || "");
+      if (this.dataset.fallbackApplied || !fb) return;
+      this.dataset.fallbackApplied = "1";
+      this.src = fb;
+    };
+    imgEl.src = imgEl.dataset.appImgPrimary;
+  }
+
+  function createAdminContext(options) {
+    var opts = options || {};
+    var pwKey = String(opts.pwKey || "QUOTEAPP_ADMINPW_V1");
+    var adminInputId = String(opts.adminInputId || "adminPw");
+    var statusSetter = (typeof opts.setStatus === "function") ? opts.setStatus : function() {};
+    var prefill = String(opts.prefillAdminPw || "").trim();
+    var appUrl = resolveExecBaseUrl(opts.appUrl);
+
+    function byId(id) {
+      return document.getElementById(String(id || ""));
+    }
+    function adminInput() {
+      return byId(adminInputId);
+    }
+    function isSessionToken(v) {
+      return String(v || "").trim().indexOf("AS_") === 0;
+    }
+    function getStoredCred() {
+      try { return localStorage.getItem(pwKey) || sessionStorage.getItem(pwKey) || ""; } catch (e) { return ""; }
+    }
+    function setStoredCred(v) {
+      var value = String(v || "").trim();
+      try { localStorage.setItem(pwKey, value); } catch (e1) { try { sessionStorage.setItem(pwKey, value); } catch (e2) {} }
+    }
+    function clearStoredCred() {
+      try { localStorage.removeItem(pwKey); } catch (e1) {}
+      try { sessionStorage.removeItem(pwKey); } catch (e2) {}
+    }
+    function currentCred() {
+      var input = adminInput();
+      var v = input ? String(input.value || "").trim() : "";
+      if (v) return v;
+      return String(getStoredCred() || "").trim();
+    }
+    function pageUrl(page) {
+      var base = appUrl || (window.location.origin + window.location.pathname);
+      return base + "?page=" + encodeURIComponent(String(page || "edit"));
+    }
+    function appendAdminAuthParam(url, token) {
+      var out = String(url || "");
+      var tok = String(token || "").trim();
+      if (!out || !isSessionToken(tok)) return out;
+      var hash = "";
+      var hashIdx = out.indexOf("#");
+      if (hashIdx >= 0) {
+        hash = out.slice(hashIdx);
+        out = out.slice(0, hashIdx);
+      }
+      var sep = out.indexOf("?") >= 0 ? "&" : "?";
+      return out + sep + "admin_auth=" + encodeURIComponent(tok) + hash;
+    }
+    function patchNavLinks() {
+      var token = currentCred();
+      if (!isSessionToken(token)) token = "";
+      var links = document.querySelectorAll(".topbar .nav a[data-page]");
+      for (var i = 0; i < links.length; i++) {
+        var page = links[i].getAttribute("data-page");
+        links[i].href = appendAdminAuthParam(pageUrl(page), token);
+        if (page === "catalog" || page === "dashboard" || page === "templates" || page === "templateslist" || page === "materialgroups") {
+          links[i].target = "_blank";
+          links[i].rel = "noopener noreferrer";
+        }
+      }
+      if (typeof opts.afterPatchNav === "function") {
+        opts.afterPatchNav({
+          token: token,
+          pageUrl: pageUrl,
+          appendAdminAuthParam: appendAdminAuthParam,
+          isSessionToken: isSessionToken,
+          currentCred: currentCred
+        });
+      }
+    }
+    function pw() {
+      var input = adminInput();
+      var v = String((input && input.value) || "").trim();
+      if (v) {
+        setStoredCred(v);
+        patchNavLinks();
+        return v;
+      }
+      var cached = String(getStoredCred() || "").trim();
+      if (cached && input && !String(input.value || "").trim()) input.value = cached;
+      patchNavLinks();
+      return cached;
+    }
+    function stripSensitiveQueryParams() {
+      try {
+        if (!window.history || !window.history.replaceState) return;
+        var url = new URL(window.location.href);
+        var keys = ["admin_auth", "admin_pw", "adminPassword", "admin_password"];
+        var changed = false;
+        for (var i = 0; i < keys.length; i++) {
+          if (!url.searchParams.has(keys[i])) continue;
+          url.searchParams.delete(keys[i]);
+          changed = true;
+        }
+        if (!changed) return;
+        var q = url.searchParams.toString();
+        var next = url.pathname + (q ? ("?" + q) : "") + (url.hash || "");
+        window.history.replaceState({}, document.title, next);
+      } catch (e) {}
+    }
+    function restorePw() {
+      var v = "";
+      try { v = localStorage.getItem(pwKey) || sessionStorage.getItem(pwKey) || ""; } catch (e) {}
+      if (!v && prefill) v = prefill;
+      v = String(v || "").trim();
+      var input = adminInput();
+      if (v && input) input.value = v;
+      if (v) setStoredCred(v);
+      stripSensitiveQueryParams();
+    }
+    function clearPw(silent) {
+      var prev = currentCred();
+      if (isSessionToken(prev)) {
+        try { google.script.run.withFailureHandler(function() {}).logoutAdmin(prev); } catch (e1) {}
+      }
+      clearStoredCred();
+      var input = adminInput();
+      if (input) input.value = "";
+      patchNavLinks();
+      if (silent === true) return;
+      statusSetter(String(opts.clearedStatus || "비밀번호를 지웠어요."));
+    }
+    function handleAdminSessionExpired(err) {
+      var msg = getDefaultErrMessage(err);
+      if (msg.indexOf("Admin session expired") < 0) return false;
+      clearPw(true);
+      statusSetter(String(opts.sessionExpiredStatus || "관리자 세션이 만료되었어요. 비밀번호를 다시 입력해요."));
+      if (window.AppUI && typeof window.AppUI.toast === "function") {
+        window.AppUI.toast(String(opts.sessionExpiredToast || "관리자 세션이 만료되었어요. 다시 로그인해요."), {
+          type: "error",
+          position: "bottom"
+        });
+      }
+      var input = adminInput();
+      if (input) input.focus();
+      return true;
+    }
+    function maybeUpgradeToSessionToken(onDone) {
+      var done = (typeof onDone === "function") ? onDone : function() {};
+      var cred = currentCred();
+      if (!cred) { patchNavLinks(); done(); return; }
+      if (isSessionToken(cred)) {
+        var input = adminInput();
+        if (input) input.value = cred;
+        setStoredCred(cred);
+        patchNavLinks();
+        done();
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function(res) {
+          var tok = String(res && res.token || "").trim();
+          if (isSessionToken(tok)) {
+            var input = adminInput();
+            if (input) input.value = tok;
+            setStoredCred(tok);
+          }
+          patchNavLinks();
+          done();
+        })
+        .withFailureHandler(function(err) {
+          if (handleAdminSessionExpired(err)) { done(); return; }
+          statusSetter(String(opts.loginFailPrefix || "관리자 로그인 실패: ") + getDefaultErrMessage(err));
+          done();
+        })
+        .loginAdmin(cred);
+    }
+
+    return {
+      appUrl: appUrl,
+      normalizeBaseUrl: normalizeExecBaseUrl,
+      resolveAppUrl: resolveExecBaseUrl,
+      getErrMessage: getDefaultErrMessage,
+      isSessionToken: isSessionToken,
+      currentCred: currentCred,
+      appendAdminAuthParam: appendAdminAuthParam,
+      pageUrl: pageUrl,
+      patchNavLinks: patchNavLinks,
+      pw: pw,
+      restorePw: restorePw,
+      clearPw: clearPw,
+      stripSensitiveQueryParams: stripSensitiveQueryParams,
+      maybeUpgradeToSessionToken: maybeUpgradeToSessionToken,
+      handleAdminSessionExpired: handleAdminSessionExpired,
+      getStoredCred: getStoredCred,
+      setStoredCred: setStoredCred,
+      clearStoredCred: clearStoredCred
+    };
+  }
+
+  window.AppShared = {
+    normalizeBaseUrl: normalizeExecBaseUrl,
+    resolveAppUrl: resolveExecBaseUrl,
+    createAdminContext: createAdminContext,
+    applyImageSource: applyImageSourceShared
+  };
+})(window, document);
+</script>
