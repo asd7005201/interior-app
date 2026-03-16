@@ -1,0 +1,11 @@
+.clasp.json
+.clasp.json.*
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+dist/
+codex-skills/
+tools/

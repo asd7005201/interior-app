@@ -1,0 +1,608 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top">
+  <?!= include('styles'); ?>
+  <?!= include('ui'); ?>
+  <style>
+    /* ── Hero: subtle teal tint ── */
+    .view-hero{padding:40px 24px 32px;text-align:center}
+    .view-hero::after{content:"";display:block;width:48px;height:2px;background:var(--pri,#2F6B5E);margin:20px auto 0;border-radius:2px}
+    .view-hero__greeting{font-size:11px;font-weight:600;color:var(--c400,#A8A39B);text-transform:uppercase;letter-spacing:.16em;margin-bottom:10px}
+    .view-hero__name{font-size:26px;font-weight:700;letter-spacing:-.03em;color:var(--text,#1C1A17);line-height:1.3}
+    .view-hero__site{font-size:13px;color:var(--c500,#837E76);margin-top:6px}
+    .view-hero__contact{font-size:11px;color:var(--c400,#A8A39B);margin-top:4px}
+
+    /* ── Total Card: teal tint bg ── */
+    .view-total-card{background:linear-gradient(135deg,#F4F9F7,#EDF5F2);color:var(--c900,#1C1A17);border:1px solid rgba(47,107,94,.15);border-radius:14px;padding:32px 24px;text-align:center;margin-bottom:20px;position:relative;overflow:hidden}
+    .view-total-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--pri,#2F6B5E)}
+    .view-total-card__label{font-size:11px;font-weight:600;color:var(--c500,#837E76);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+    .view-total-card__amount{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.2;color:var(--pri,#2F6B5E)}
+    .view-total-card__sub{font-size:11px;color:var(--c400,#A8A39B);margin-top:8px}
+    .view-total-card .view-vat-rows{margin-top:20px;padding-top:16px;border-top:1px solid rgba(47,107,94,.1)}
+    .view-vat-row{display:flex;justify-content:space-between;padding:5px 0}
+    .view-vat-row__k{font-size:13px;color:var(--c500,#837E76)}
+    .view-vat-row__v{font-size:13px;font-weight:600;color:var(--c800,#302D28)}
+    .view-vat-row--total .view-vat-row__v{color:var(--pri,#2F6B5E);font-size:17px;font-weight:700}
+
+    /* ── Group Table Section ── */
+    .view-group-section{border-top:1px solid var(--c200,#E0DDD7)}
+    .view-group-section:first-child{border-top:none}
+    .view-group-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 20px 13px 18px;border-left:3px solid var(--pri,#2F6B5E);background:var(--c50,#FAFAF9)}
+    .view-group__title{font-size:14px;font-weight:700;color:var(--c900,#1C1A17);letter-spacing:-.01em}
+    .view-group__count{font-size:11px;font-weight:500;color:var(--c400,#A8A39B);margin-left:6px}
+    .view-group__subtotal{font-size:13px;font-weight:700;color:var(--pri,#2F6B5E);white-space:nowrap}
+    .view-tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+    .view-tbl th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--c600,#625D56);padding:8px 14px;border-bottom:1px solid var(--c300,#C9C5BD);background:var(--c100,#F4F3F0);white-space:nowrap}
+    .view-tbl td{padding:10px 14px;border-bottom:1px solid var(--c200,#E0DDD7);vertical-align:top;color:var(--c800,#302D28)}
+    .view-tbl tbody tr:nth-child(even) td{background:rgba(250,250,249,.5)}
+    .view-tbl tbody tr:hover td{background:rgba(47,107,94,.03)}
+    .view-tbl tfoot td{border-bottom:none;border-top:1px solid var(--c300,#C9C5BD);padding:10px 14px;background:var(--c50,#FAFAF9)}
+    .view-tbl th:nth-child(1),.view-tbl td:nth-child(1){width:18%}
+    .view-tbl th:nth-child(2),.view-tbl td:nth-child(2){width:8%}
+    .view-tbl th:nth-child(3),.view-tbl td:nth-child(3){width:7%}
+    .view-tbl th:nth-child(4),.view-tbl td:nth-child(4){width:12%;text-align:right}
+    .view-tbl th:nth-child(5),.view-tbl td:nth-child(5){width:14%;text-align:right}
+    .view-tbl th:nth-child(6),.view-tbl td:nth-child(6){width:27%}
+    .view-tbl th:nth-child(7),.view-tbl td:nth-child(7){width:14%}
+    .view-ptype{display:inline-block;font-size:10px;color:var(--c400,#A8A39B);margin-left:2px}
+
+    /* ── Section Label ── */
+    .view-section-label{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--c600,#625D56);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--c200,#E0DDD7)}
+
+    /* ── Approve Card: subtle teal tint ── */
+    .view-approve-card{border:1px solid var(--c200,#E0DDD7);border-radius:14px;background:var(--surface,#fff);overflow:hidden}
+    .view-approve-card .card__body{padding:24px}
+    .view-approve-card__title{font-size:15px;font-weight:700;color:var(--pri,#2F6B5E);margin-bottom:4px}
+    .view-approve-card__desc{font-size:12px;color:var(--c500,#837E76);margin-bottom:16px}
+    #btnApprove{background:var(--pri,#2F6B5E);color:#fff;min-height:48px;font-size:14px;border-radius:10px;width:100%}
+    #btnApprove:hover{background:var(--pri-dk,#245649)}
+    #btnApprove:disabled,#btnApprove[aria-disabled="true"]{background:var(--c400,#A8A39B);box-shadow:none}
+    .view-deposit-box{margin-top:16px;padding:16px;border-radius:10px;background:#fff;border:1px solid var(--c200,#E0DDD7)}
+
+    /* ── Memo Card: warm tint ── */
+    .view-memo-card{border-radius:14px}
+    .view-memo-card .card__body{padding:20px 24px 24px}
+
+    .view-footer{padding:32px 0 16px;text-align:center}
+    .view-footer__text{font-size:11px;color:var(--c400,#A8A39B);line-height:1.6}
+
+    @media(min-width:600px){.view-hero{padding:48px 32px 36px}.view-hero__name{font-size:28px}.view-total-card{padding:36px 32px}.view-total-card__amount{font-size:36px}}
+    @media print{.view-approve-card,.view-memo-card,.view-footer{display:none!important}.view-total-card{background:#fff!important;border:2px solid #2F6B5E}.view-total-card__amount{color:#2F6B5E!important}.view-vat-row--total .view-vat-row__v{color:#2F6B5E!important}}
+  </style>
+</head>
+<body>
+
+  <? if (error) { ?>
+    <div class="app-shell">
+      <section class="card">
+        <div class="card__body" style="padding-top:20px;">
+          <div class="error-text"><b>오류:</b> <?= error ?></div>
+        </div>
+      </section>
+    </div>
+  <? } else {
+      var q = data.quote;
+      var items = data.items || [];
+      var notes = data.notes || [];
+      var meta = data.meta || {};
+      var runtimeAppUrl = (typeof app_url !== "undefined" && app_url) ? String(app_url) : "";
+      var baseUrl = String(meta.base_url || runtimeAppUrl || "").trim();
+      baseUrl = baseUrl.replace(/\/+$/, "");
+      var token = meta.token || "";
+
+      var vatIncluded = String(q.vat_included || "N").toUpperCase() === "Y";
+      var includeServiceInTotal = String((q.include_service_in_total || (meta.total_options && meta.total_options.include_service_in_total) || "N")).toUpperCase() === "Y";
+      var includeOptionInTotal = String((q.include_option_in_total || (meta.total_options && meta.total_options.include_option_in_total) || "N")).toUpperCase() === "Y";
+      var includeIncludedInTotal = String((q.include_included_in_total || (meta.total_options && meta.total_options.include_included_in_total) || "N")).toUpperCase() === "Y";
+
+      function fmt(n){ var x = Number(n||0); return x.toLocaleString('ko-KR'); }
+      function esc(s){
+        return String(s||"")
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+          .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+      }
+      function normPriceType(v){
+        var s = String(v || "NORMAL").toUpperCase();
+        if (s === "OPTION" || s === "INCLUDED" || s === "SERVICE") return s;
+        return "NORMAL";
+      }
+      function normGroupId(v, label){
+        var s = String(v || "").trim().toLowerCase();
+        if (!s) s = String(label || "").trim().toLowerCase();
+        s = s.replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-+|-+$/g, "");
+        return s || "misc";
+      }
+      function itemPrice(it){
+        if (it.price !== undefined && it.price !== null && String(it.price) !== "") return Number(it.price || 0);
+        if (it.amount !== undefined && it.amount !== null && String(it.amount) !== "") return Number(it.amount || 0);
+        return Number(it.qty || 0) * Number(it.unit_price || 0);
+      }
+      function includeInSubtotal(priceType){
+        var t = normPriceType(priceType);
+        if (t === "NORMAL") return true;
+        if (t === "SERVICE") return includeServiceInTotal;
+        if (t === "OPTION") return includeOptionInTotal;
+        if (t === "INCLUDED") return includeIncludedInTotal;
+        return false;
+      }
+      function normalizeViewItem(it, index){
+        var item = it || {};
+        var groupLabel = String(item.group_label || item.groupLabel || item.process || "기타");
+        var priceType = normPriceType(item.price_type || item.priceType || "NORMAL");
+        var outPrice = Number(itemPrice(item) || 0);
+        return {
+          idx: index + 1,
+          group_id: normGroupId(item.group_id || item.groupId, groupLabel),
+          group_label: groupLabel || "기타",
+          group_code: String(item.group_code || item.groupCode || ""),
+          group_order: Number(item.group_order || item.groupOrder || 9999),
+          item_order: Number(item.item_order || item.itemOrder || item.seq || (index + 1)),
+          name: String(item.name || item.material || ""),
+          location: String(item.location || ""),
+          detail: String(item.detail || item.spec || ""),
+          note: String(item.note || ""),
+          price: outPrice,
+          price_type: priceType,
+          qty: Number(item.qty || 0),
+          unit: String(item.unit || ""),
+          unit_price: Number(item.unit_price || item.unitPrice || 0),
+          material_image_id: String(item.material_image_id || "")
+        };
+      }
+      function buildGroupedItems(list){
+        var arr = [];
+        for (var i = 0; i < list.length; i++) arr.push(normalizeViewItem(list[i], i));
+        arr.sort(function(a, b){
+          if (a.group_order !== b.group_order) return a.group_order - b.group_order;
+          if (a.item_order !== b.item_order) return a.item_order - b.item_order;
+          return a.idx - b.idx;
+        });
+        var groups = [];
+        var byId = {};
+        var total = 0;
+        for (var j = 0; j < arr.length; j++) {
+          var x = arr[j];
+          if (!byId[x.group_id]) {
+            byId[x.group_id] = {
+              id: x.group_id,
+              label: x.group_label,
+              code: x.group_code,
+              order: x.group_order,
+              items: [],
+              subtotal: 0
+            };
+            groups.push(byId[x.group_id]);
+          }
+          byId[x.group_id].items.push(x);
+          if (includeInSubtotal(x.price_type)) {
+            byId[x.group_id].subtotal += Number(x.price || 0);
+            total += Number(x.price || 0);
+          }
+        }
+        return { groups: groups, total: total };
+      }
+      var grouped = buildGroupedItems(items);
+
+      function imgSecureUrl(fileId) {
+        if (!fileId) return "";
+        var qs = "quoteId=" + encodeURIComponent(q.quote_id) +
+               "&token=" + encodeURIComponent(token) +
+               "&fileId=" + encodeURIComponent(fileId) +
+               "&v=" + encodeURIComponent(String(q.updated_at || ""));
+        if (!baseUrl) return "?page=image&" + qs;
+        return baseUrl + "?page=image&" + qs;
+      }
+      function imgPublicUrl(fileId) {
+        if (!fileId) return "";
+        var qs = "fileId=" + encodeURIComponent(fileId) +
+                 "&v=" + encodeURIComponent(String(q.updated_at || ""));
+        if (!baseUrl) return "?page=img&" + qs;
+        return baseUrl + "?page=img&" + qs;
+      }
+      function imgDriveUrl(fileId) {
+        if (!fileId) return "";
+        return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(fileId) + "&sz=w600";
+      }
+  ?>
+
+    <div class="app-shell" style="max-width:720px;">
+
+      <!-- Hero Header -->
+      <section class="card" style="border:none; box-shadow:none; background:transparent;">
+        <div class="view-hero">
+          <div class="view-hero__greeting">Quotation</div>
+          <div class="view-hero__name"><?= esc(q.customer_name || "고객") ?>님 견적서</div>
+          <? if (q.site_name) { ?>
+            <div class="view-hero__site"><?= esc(q.site_name) ?></div>
+          <? } ?>
+          <div class="view-hero__contact">담당 <?= esc(q.contact_name || "-") ?> / <?= esc(q.contact_phone || "-") ?></div>
+        </div>
+      </section>
+
+      <!-- Total Card -->
+      <div class="view-total-card">
+        <div class="view-total-card__label">총 공사금액</div>
+        <div class="view-total-card__amount"><?= fmt(grouped.total) ?>원</div>
+        <div class="view-total-card__sub">
+          <?= fmt(items.length) ?>개 항목
+          <? if (!includeServiceInTotal) { ?> · 서비스 제외<? } ?>
+          <? if (!includeOptionInTotal) { ?> · 옵션 제외<? } ?>
+          <? if (!includeIncludedInTotal) { ?> · 포함항목 제외<? } ?>
+        </div>
+
+        <? if (vatIncluded) { ?>
+          <div class="view-vat-rows">
+            <div class="view-vat-row">
+              <span class="view-vat-row__k">공급가액</span>
+              <span class="view-vat-row__v"><?= fmt(q.subtotal) ?> 원</span>
+            </div>
+            <div class="view-vat-row">
+              <span class="view-vat-row__k">부가세</span>
+              <span class="view-vat-row__v"><?= fmt(q.vat) ?> 원</span>
+            </div>
+            <div class="view-vat-row view-vat-row--total">
+              <span class="view-vat-row__k">총액 (VAT 포함)</span>
+              <span class="view-vat-row__v"><?= fmt(q.total) ?> 원</span>
+            </div>
+          </div>
+        <? } else { ?>
+          <div class="view-vat-rows">
+            <div class="view-vat-row">
+              <span class="view-vat-row__k">견적금액</span>
+              <span class="view-vat-row__v"><?= fmt(q.total) ?> 원</span>
+            </div>
+            <div class="view-vat-row">
+              <span class="view-vat-row__k">부가세</span>
+              <span class="view-vat-row__v">미포함</span>
+            </div>
+          </div>
+        <? } ?>
+      </div>
+
+      <? if (q.memo) { ?>
+        <section class="card" style="margin-bottom:var(--space-16);">
+          <div class="card__body" style="padding-top:16px;">
+            <div class="view-section-label">메모</div>
+            <div style="font:var(--font-small); line-height:1.7; color:var(--color-text);">
+              <?= esc(q.memo || "").replace(/\n/g, "<br/>") ?>
+            </div>
+          </div>
+        </section>
+      <? } ?>
+
+      <!-- Approval Card -->
+      <section class="view-approve-card" style="margin-bottom:var(--space-16);">
+        <div class="card__body">
+          <div class="view-approve-card__title">진행 확정</div>
+          <div class="view-approve-card__desc">견적에 이상이 없으면 아래 버튼으로 확정해 주세요.</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button id="btnApprove" type="button">이 견적으로 진행할게요</button>
+            <span class="help-text" id="approveMsg"></span>
+          </div>
+
+          <div id="depositBox" style="display:none;">
+            <div class="view-deposit-box">
+              <div class="badge badge--success" style="margin-bottom:10px;">확정 완료</div>
+              <div class="list">
+                <div class="list-row" style="min-height:40px;">
+                  <div class="list-row__main"><div class="list-row__title">계약금</div></div>
+                  <div class="list-row__right" id="depAmt"></div>
+                </div>
+                <div class="divider"></div>
+                <div class="list-row" style="min-height:40px;">
+                  <div class="list-row__main"><div class="list-row__title">입금 기한</div></div>
+                  <div class="list-row__right" id="depDue"></div>
+                </div>
+                <div class="divider"></div>
+                <div class="list-row" style="min-height:40px;">
+                  <div class="list-row__main"><div class="list-row__title">입금 계좌</div></div>
+                  <div class="list-row__right" id="accInfo"></div>
+                </div>
+              </div>
+              <button id="btnCopyAcc" type="button" class="btn btn--weak btn--sm" style="margin-top:10px; display:none;">계좌 복사</button>
+              <div class="help-text" style="margin-top:10px;">입금 확인 후 일정과 착공 안내를 드려요.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Items by Group -->
+      <section class="card" style="margin-top:var(--space-24);">
+        <div class="card__header">
+          <span class="card__title" style="font-size:15px;">공정별 내역</span>
+          <span class="help-text">총 <?= fmt(items.length) ?>개 항목</span>
+        </div>
+        <div class="card__body" style="padding:0;">
+
+      <? if (!grouped.groups.length) { ?>
+        <div style="padding:20px;"><div class="help-text">항목이 없어요.</div></div>
+      <? } ?>
+
+      <? for (var g = 0; g < grouped.groups.length; g++) {
+           var gp = grouped.groups[g];
+      ?>
+        <div class="view-group-section">
+          <div class="view-group-head">
+            <div>
+              <span class="view-group__title"><?= esc((gp.code ? (gp.code + " ") : "") + gp.label) ?></span>
+              <span class="view-group__count"><?= fmt(gp.items.length) ?>건</span>
+            </div>
+            <div class="view-group__subtotal">소계 <?= fmt(gp.subtotal) ?>원</div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="view-tbl">
+              <thead>
+                <tr>
+                  <th>세부내역</th>
+                  <th>수량</th>
+                  <th>단위</th>
+                  <th>단가</th>
+                  <th>금액</th>
+                  <th>품명/규격</th>
+                  <th>비고</th>
+                </tr>
+              </thead>
+              <tbody>
+                <? for (var i = 0; i < gp.items.length; i++) {
+                     var it = gp.items[i];
+                ?>
+                  <tr>
+                    <td><?= esc(it.location || "-") ?></td>
+                    <td><?= fmt(it.qty || 0) ?></td>
+                    <td><?= esc(it.unit || "") ?></td>
+                    <td style="text-align:right;"><?= fmt(it.unit_price || 0) ?></td>
+                    <td style="text-align:right;">
+                      <?= fmt(it.price || 0) ?>
+                      <? if (it.price_type !== "NORMAL" && !includeInSubtotal(it.price_type)) { ?>
+                        <span class="view-ptype">(<?= esc(it.price_type) ?>, 제외)</span>
+                      <? } else if (it.price_type !== "NORMAL") { ?>
+                        <span class="view-ptype">(<?= esc(it.price_type) ?>)</span>
+                      <? } ?>
+                    </td>
+                    <td><?= esc((it.name || "-") + (it.detail ? " / " + it.detail : "")) ?></td>
+                    <td><?= esc(it.note || "") ?></td>
+                  </tr>
+                <? } ?>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" style="text-align:right;font-weight:700;color:var(--c600,#625D56);">소계</td>
+                  <td style="text-align:right;font-weight:700;color:var(--pri,#2F6B5E);"><?= fmt(gp.subtotal) ?>원</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      <? } ?>
+
+        </div>
+      </section>
+
+      <!-- Customer Note Section -->
+      <section class="card view-memo-card" style="margin-top:var(--space-20);">
+        <div class="card__body" style="padding-top:20px;">
+          <div class="view-section-label">수정 및 추가 요청</div>
+          <div class="help-text" style="margin-bottom:10px;">변경 사항이 있으면 아래에 남겨 주세요. 확인 후 연락드립니다.</div>
+          <textarea id="customerNote" rows="3" placeholder="예) 거실 몰딩은 화이트로 변경, 조명 추가"></textarea>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px;">
+            <button id="btnSendNote" type="button" class="btn btn--weak">메모 보내기</button>
+            <span class="help-text" id="noteMsg"></span>
+          </div>
+
+          <div class="divider" style="margin:16px 0 12px;"></div>
+          <div class="view-section-label">메모 기록</div>
+          <div id="noteList">
+            <div class="help-text">불러오는 중...</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="view-footer">
+        <div class="view-footer__text">본 견적서는 발행일로부터 7일간 유효합니다.</div>
+      </div>
+
+    </div>
+
+<script>
+(function(){
+  var quoteId = "<?= String(q.quote_id || '') ?>";
+  var token = "<?= String(token || '') ?>";
+  var initialStatus = String("<?= String(q.status || '') ?>").toLowerCase();
+  var initialDepositAmount = Number("<?= Number(q.deposit_amount || 0) ?>") || 0;
+  var initialDepositDueAt = "<?= String(q.deposit_due_at || '') ?>";
+  var initialAccountInfo = "<?= String((meta && meta.account_info) || '') ?>";
+  var approveLockKey = "QUOTEAPP_APPROVE_LOCK_" + quoteId + "_" + token;
+  var approveInFlight = false;
+  var initialNotes = [];
+  try {
+    initialNotes = JSON.parse(decodeURIComponent("<?= encodeURIComponent(JSON.stringify(notes || [])) ?>"));
+  } catch (e) { initialNotes = []; }
+  var notesState = Array.isArray(initialNotes) ? initialNotes.slice() : [];
+
+  var btnApprove = document.getElementById("btnApprove");
+  var approveMsg = document.getElementById("approveMsg");
+  var depBox = document.getElementById("depositBox");
+  var depAmt = document.getElementById("depAmt");
+  var depDue = document.getElementById("depDue");
+  var accInfo = document.getElementById("accInfo");
+  var btnCopyAcc = document.getElementById("btnCopyAcc");
+  var btnSendNote = document.getElementById("btnSendNote");
+  var noteMsg = document.getElementById("noteMsg");
+  var noteTa = document.getElementById("customerNote");
+  var noteList = document.getElementById("noteList");
+
+  function toast(msg, type){
+    if (!msg || !window.AppUI) return;
+    window.AppUI.toast(msg, { type: type || "", position: "bottom" });
+  }
+
+  function bindQuoteItemImages(){
+    var imgs = document.querySelectorAll("img.quote-item-img");
+    if (!imgs || !imgs.length) return;
+    imgs.forEach(function(img){
+      img.dataset.failStep = "0";
+      img.onerror = function(){
+        var step = String(img.dataset.failStep || "0");
+        var srcSecure = String(img.dataset.srcSecure || "");
+        var srcPublic = String(img.dataset.srcPublic || "");
+        var srcDrive = String(img.dataset.srcDrive || "");
+        if (step === "0") { img.dataset.failStep = "1"; if (srcPublic && img.src !== srcPublic) { img.src = srcPublic; return; } }
+        if (step === "1") { img.dataset.failStep = "2"; if (srcSecure && img.src !== srcSecure) { img.src = srcSecure; return; } }
+        if (step === "2") { img.dataset.failStep = "3"; if (srcDrive && img.src !== srcDrive) { img.src = srcDrive; return; } }
+      };
+    });
+  }
+
+  function fmtMoney(n){ return Number(n||0).toLocaleString('ko-KR') + " 원"; }
+  function fmtDate(iso){
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString('ko-KR');
+  }
+  function setLoading(btn, on){
+    if(!btn) return;
+    if(on){ btn.disabled = true; btn.classList.add("loading"); }
+    else { btn.disabled = false; btn.classList.remove("loading"); }
+  }
+  function showDeposit(res){
+    depBox.style.display = "block";
+    depAmt.textContent = res.deposit_amount ? fmtMoney(res.deposit_amount) : "-";
+    depDue.textContent = res.deposit_due_at ? fmtDate(res.deposit_due_at) : "-";
+    accInfo.textContent = res.account_info ? String(res.account_info) : "-";
+    if (res.account_info && btnCopyAcc){
+      btnCopyAcc.style.display = "inline-flex";
+      btnCopyAcc.onclick = function(){
+        var t = String(res.account_info);
+        if (navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(t).then(function(){
+            approveMsg.textContent = "계좌를 복사했어요.";
+            toast("계좌를 복사했어요.", "success");
+          });
+        } else { prompt("계좌 복사", t); }
+      };
+    }
+  }
+  function lockApproveSuccess(msg){
+    if (btnApprove){
+      btnApprove.disabled = true;
+      btnApprove.classList.remove("loading");
+      btnApprove.dataset.locked = "1";
+      btnApprove.textContent = "확정 완료";
+      btnApprove.style.pointerEvents = "none";
+      btnApprove.setAttribute("aria-disabled", "true");
+    }
+    approveMsg.textContent = msg || "확정되었어요. 곧 안내드릴게요.";
+    try { localStorage.setItem(approveLockKey, "1"); } catch (e) {}
+  }
+  function unlockApproveForRetry(msg){
+    if (btnApprove){
+      btnApprove.disabled = false;
+      btnApprove.classList.remove("loading");
+      btnApprove.dataset.locked = "";
+      btnApprove.textContent = "이 견적으로 진행할게요";
+      btnApprove.style.pointerEvents = "";
+      btnApprove.removeAttribute("aria-disabled");
+    }
+    if (msg) approveMsg.textContent = msg;
+    try { localStorage.removeItem(approveLockKey); } catch (e) {}
+  }
+  function escapeHtml(s){
+    return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+  function renderNotes(list){
+    if (!noteList) return;
+    if (!list || !list.length){
+      noteList.innerHTML = "<div class='help-text'>아직 보낸 메모가 없어요.</div>";
+      return;
+    }
+    var html = "";
+    list.forEach(function(x){
+      html += "<div class='view-note-item'>" +
+              "<div class='view-note-item__date'>" + (x.created_at ? fmtDate(x.created_at) : "-") + "</div>" +
+              "<div class='view-note-item__text'>" + escapeHtml(String(x.note || "")).replace(/\n/g,"<br/>") + "</div>" +
+              "</div>";
+    });
+    noteList.innerHTML = html;
+  }
+  function loadNotes(){
+    if (!noteList) return;
+    noteList.innerHTML = "<div class='help-text'>불러오는 중...</div>";
+    google.script.run
+      .withSuccessHandler(function(list){ notesState = list || []; renderNotes(notesState); })
+      .withFailureHandler(function(){ noteList.innerHTML = "<div class='help-text'>메모를 불러오지 못했어요.</div>"; })
+      .listCustomerNotesByToken(quoteId, token);
+  }
+  function trackViewAsync(){
+    google.script.run.withFailureHandler(function(){}).trackQuoteViewByToken(quoteId, token, "view");
+  }
+
+  bindQuoteItemImages();
+  renderNotes(notesState);
+  setTimeout(function(){ loadNotes(); trackViewAsync(); }, 0);
+
+  if (initialStatus === "approved") {
+    lockApproveSuccess("이미 확정되었어요. 곧 안내드릴게요.");
+    showDeposit({ deposit_amount: initialDepositAmount, deposit_due_at: initialDepositDueAt, account_info: initialAccountInfo });
+  } else {
+    try { if (localStorage.getItem(approveLockKey) === "1") lockApproveSuccess("이미 확정되었어요. 곧 안내드릴게요."); } catch (e) {}
+  }
+
+  if (btnApprove){
+    btnApprove.addEventListener("click", function(){
+      if (btnApprove.dataset.locked === "1") return;
+      if (approveInFlight) return;
+      approveInFlight = true;
+      setLoading(btnApprove, true);
+      approveMsg.textContent = "확정 처리 중...";
+      google.script.run
+        .withSuccessHandler(function(res){
+          approveInFlight = false;
+          if (!res || !res.ok) { approveMsg.textContent = "처리에 실패했어요."; toast("확정하지 못했어요.", "error"); return; }
+          setLoading(btnApprove, false);
+          if (res.already_approved) lockApproveSuccess("이미 확정되었어요. 곧 안내드릴게요.");
+          else { lockApproveSuccess("확정되었어요. 곧 안내드릴게요."); toast("확정되었어요.", "success"); }
+          showDeposit(res);
+        })
+        .withFailureHandler(function(){
+          approveInFlight = false;
+          unlockApproveForRetry("문제가 생겼어요. 다시 시도해 주세요.");
+          toast("확정 중 오류가 생겼어요.", "error");
+        })
+        .approveQuoteByToken(quoteId, token);
+    });
+  }
+
+  if (btnSendNote){
+    btnSendNote.addEventListener("click", function(){
+      var txt = (noteTa && noteTa.value) ? noteTa.value.trim() : "";
+      if(!txt){ noteMsg.textContent = "내용을 입력해 주세요."; toast("메모를 입력해 주세요.", "error"); return; }
+      setLoading(btnSendNote, true);
+      noteMsg.textContent = "보내는 중...";
+      google.script.run
+        .withSuccessHandler(function(res){
+          setLoading(btnSendNote, false);
+          noteMsg.textContent = "메모를 보냈어요.";
+          toast("메모를 보냈어요.", "success");
+          if(noteTa) noteTa.value = "";
+          if (res && res.note){ notesState.unshift(res.note); renderNotes(notesState); }
+          else loadNotes();
+        })
+        .withFailureHandler(function(){
+          setLoading(btnSendNote, false);
+          noteMsg.textContent = "전송 실패. 다시 시도해 주세요.";
+          toast("메모 전송에 실패했어요.", "error");
+        })
+        .saveCustomerNoteByToken(quoteId, token, txt);
+    });
+  }
+})();
+</script>
+
+  <? } ?>
+</body>
+</html>
