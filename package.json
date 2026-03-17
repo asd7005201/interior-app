@@ -1,0 +1,18 @@
+{
+  "name": "interior-app",
+  "private": true,
+  "scripts": {
+    "clasp:login": "clasp login --no-localhost",
+    "clasp:status:quote": "cd quote_app && clasp status",
+    "clasp:status:prequote": "cd prequote_app && clasp status",
+    "clasp:push:quote": "cd quote_app && clasp push",
+    "clasp:push:prequote": "cd prequote_app && clasp push",
+    "clasp:deploy:quote": "cd quote_app && clasp deploy",
+    "clasp:deploy:prequote": "cd prequote_app && clasp deploy",
+    "dev:prequote-web": "cd prequote-web && npm run dev",
+    "build:prequote-web": "cd prequote-web && npm run build"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}

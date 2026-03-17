@@ -546,6 +546,10 @@ function ensureSpreadsheetId_() {
 
 function doGet(e) {
   ensureSpreadsheetId_();
+  // === API bridge: JSON API via ?action= parameter ===
+  var action = String((e && e.parameter && e.parameter.action) || "").trim();
+  if (action) return handleApiAction_(action, e.parameter || {}, "GET");
+
   // Support both ?page=admin and /admin path formats
   var p = String((e && e.parameter && e.parameter.page) || "").toLowerCase().trim();
   if (!p && e && e.pathInfo) {
@@ -565,6 +569,48 @@ function doGet(e) {
     return HtmlService.createHtmlOutput(
       "<div style='font-family:sans-serif;padding:20px'><b>Error</b><br>" + escapeHtml_(String(err)) + "</div>"
     ).setTitle("Error");
+  }
+}
+
+// === API bridge: POST endpoint for CF Pages frontend ===
+function doPost(e) {
+  ensureSpreadsheetId_();
+  try {
+    var body = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    var action = String(body.action || "").trim();
+    if (!action) return jsonResponse_({ ok: false, error: "action required" });
+    return handleApiAction_(action, body, "POST");
+  } catch (err) {
+    return jsonResponse_({ ok: false, error: String(err.message || err) });
+  }
+}
+
+// === API action router — wraps existing functions as JSON API ===
+function handleApiAction_(action, params, method) {
+  try {
+    // --- Public endpoints (no auth) ---
+    if (action === "loadSurveyConfig") return jsonResponse_({ ok: true, data: loadSurveyConfig() });
+    if (action === "submitSurvey") return jsonResponse_({ ok: true, data: submitSurvey(params.payload || params) });
+    if (action === "getResultData") return jsonResponse_({ ok: true, data: getResultData(params.id || params.requestId, params.token || params.shareToken) });
+    if (action === "getResultRecommendations") return jsonResponse_({ ok: true, data: getResultRecommendations(params.id || params.requestId, params.token || params.shareToken) });
+
+    // --- Admin endpoints (token/password auth — validated inside each function) ---
+    if (action === "adminLogin") return jsonResponse_({ ok: true, data: adminLogin(params.password) });
+    if (action === "adminLogout") return jsonResponse_({ ok: true, data: adminLogout(params.credential) });
+    if (action === "adminGetDashboard") return jsonResponse_({ ok: true, data: adminGetDashboard(params.credential) });
+    if (action === "adminGetRequestDetail") return jsonResponse_({ ok: true, data: adminGetRequestDetail(params.credential, params.requestId) });
+    if (action === "adminSaveRequestReview") return jsonResponse_({ ok: true, data: adminSaveRequestReview(params.credential, params.requestId, params.payload) });
+    if (action === "adminRecalculateRequest") return jsonResponse_({ ok: true, data: adminRecalculateRequest(params.credential, params.requestId, params.payload) });
+    if (action === "adminUpdateRequestStatus") return jsonResponse_({ ok: true, data: adminUpdateRequestStatus(params.credential, params.requestId, params.newStatus, params.note) });
+    if (action === "adminAddNote") return jsonResponse_({ ok: true, data: adminAddNote(params.credential, params.requestId, params.noteText, params.options) });
+    if (action === "adminSearchMaterials") return jsonResponse_({ ok: true, data: adminSearchMaterials(params.credential, params.query, params.options) });
+    if (action === "adminBulkUpdateRequests") return jsonResponse_({ ok: true, data: adminBulkUpdateRequests(params.credential, params.payload) });
+    if (action === "adminCreateQuoteDraft") return jsonResponse_({ ok: true, data: adminCreateQuoteDraft(params.credential, params.requestId, params.options) });
+    if (action === "adminSyncCaches") return jsonResponse_({ ok: true, data: adminSyncCaches(params.credential) });
+
+    return jsonResponse_({ ok: false, error: "Unknown action: " + action });
+  } catch (err) {
+    return jsonResponse_({ ok: false, error: String(err.message || err) });
   }
 }
 
@@ -2169,6 +2215,203 @@ function runSurveySubmitPostprocessQueue_() {
 //  SURVEY SUBMISSION + ESTIMATE CALCULATION
 // ============================================================
 
+var COMMERCIAL_ESTIMATE_HOUSING_MAP_ = {
+  OFFICE: "OFFICE",
+  OFFICE_WORK: "OFFICE",
+  OTHER: "OTHER"
+};
+
+function getQuickStartBundleRow_(bundleId) {
+  var id = String(bundleId || "").trim();
+  if (!id) return null;
+  var rows = readStaticRowsCached_("QuickStartBundles");
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i].bundle_id || "").trim() === id) return rows[i];
+  }
+  return null;
+}
+
+function deriveBundleAreaBand_(answers, projectType) {
+  var type = String(projectType || "").trim().toUpperCase();
+  var bundleId = String(
+    (type === "COMMERCIAL" ? answers.Q000_PRESET_COMM : answers.Q000_PRESET_RESI) ||
+    answers.Q000_PRESET_RESI ||
+    answers.Q000_PRESET_COMM ||
+    ""
+  ).trim();
+  if (!bundleId) return "";
+  var bundle = getQuickStartBundleRow_(bundleId);
+  if (!bundle) return "";
+  var filters = safeJsonParse_(bundle.recommended_template_filters_json, {});
+  return String(filters && filters.area_band || "").trim().toUpperCase();
+}
+
+function normalizeEstimateHousingType_(projectType, answers) {
+  var type = String(projectType || "").trim().toUpperCase();
+  if (type !== "COMMERCIAL") {
+    return String((answers.R001_HOUSING_TYPE || answers.C001_BIZ_TYPE || "")).trim().toUpperCase();
+  }
+  var raw = String(answers.C001_BIZ_TYPE || "").trim().toUpperCase();
+  if (!raw) return "COMMERCIAL";
+  if (COMMERCIAL_ESTIMATE_HOUSING_MAP_[raw]) return COMMERCIAL_ESTIMATE_HOUSING_MAP_[raw];
+  return "COMMERCIAL";
+}
+
+function normalizeSurveyAnswers_(answers, projectType) {
+  var source = answers && typeof answers === "object" ? answers : {};
+  var next = Object.assign({}, source);
+  var type = String(projectType || next.Q000_PROJECT_TYPE || "").trim().toUpperCase();
+  var derivedArea = deriveBundleAreaBand_(next, type);
+  if (derivedArea) {
+    if (type === "COMMERCIAL" && !String(next.C002_AREA || "").trim()) next.C002_AREA = derivedArea;
+    if (type !== "COMMERCIAL" && !String(next.R002_AREA || "").trim()) next.R002_AREA = derivedArea;
+  }
+  return next;
+}
+
+function buildRequestAutoEstimateState_(requestRow, answerMap) {
+  var baseAnswers = answerMap && typeof answerMap === "object" ? answerMap : {};
+  var projectType = String((requestRow && requestRow.project_type) || baseAnswers.Q000_PROJECT_TYPE || "").trim().toUpperCase();
+  var normalizedAnswers = normalizeSurveyAnswers_(baseAnswers, projectType);
+  var normalizedProjectType = String(normalizedAnswers.Q000_PROJECT_TYPE || projectType).trim().toUpperCase();
+  return {
+    answers: normalizedAnswers,
+    projectType: normalizedProjectType,
+    tags: calculateTags_(normalizedAnswers),
+    estimate: calculateEstimate_(normalizedAnswers, normalizedProjectType)
+  };
+}
+
+function repairStoredAutoEstimate_(requestId) {
+  var rid = String(requestId || "").trim();
+  if (!rid) return { success: false, skipped: true, reason: "missing_request_id" };
+  var found = findRequestRowById_(rid);
+  if (!found) return { success: false, skipped: true, reason: "request_not_found", request_id: rid };
+
+  var answerRows = getRequestAnswerRows_(found.data, { request_id: rid });
+  var answerMap = buildAnswerMapFromRows_(answerRows);
+  if (!Object.keys(answerMap).length) {
+    return { success: false, skipped: true, reason: "missing_answers", request_id: rid };
+  }
+
+  var beforeMin = toNumber_(found.data.estimate_min, 0);
+  var beforeMax = toNumber_(found.data.estimate_max, 0);
+  var state = buildRequestAutoEstimateState_(found.data, answerMap);
+  var now = nowIso_();
+  var projectType = state.projectType;
+  var normalizedAnswers = state.answers;
+  var estimate = state.estimate;
+  var patch = {
+    updated_at: now,
+    project_type: projectType,
+    housing_type: String(
+      projectType === "COMMERCIAL"
+        ? (normalizedAnswers.C001_BIZ_TYPE || found.data.housing_type || "")
+        : (normalizedAnswers.R001_HOUSING_TYPE || found.data.housing_type || "")
+    ).trim(),
+    area_py: String(
+      projectType === "COMMERCIAL"
+        ? (normalizedAnswers.C002_AREA || found.data.area_py || "")
+        : (normalizedAnswers.R002_AREA || found.data.area_py || "")
+    ).trim(),
+    scope_level: String(
+      projectType === "COMMERCIAL"
+        ? (normalizedAnswers.C011_SCOPE_LEVEL || found.data.scope_level || "")
+        : (normalizedAnswers.R011_SCOPE_LEVEL || found.data.scope_level || "")
+    ).trim(),
+    flow_mode: String(normalizedAnswers.Q000_FLOW_MODE || found.data.flow_mode || "").trim(),
+    preset_bundle_id: String(
+      normalizedAnswers.Q000_PRESET_RESI ||
+      normalizedAnswers.Q000_PRESET_COMM ||
+      found.data.preset_bundle_id ||
+      ""
+    ).trim(),
+    tags_json: JSON.stringify(state.tags || []),
+    estimate_min: toNumber_(estimate.min, 0),
+    estimate_max: toNumber_(estimate.max, 0),
+    estimate_json: JSON.stringify(estimate),
+    risk_flags_json: JSON.stringify(estimate.flags || []),
+    answers_snapshot_json: JSON.stringify(normalizedAnswers)
+  };
+  var finalSource = String(found.data.final_estimate_source || "AUTO").trim().toUpperCase();
+  if (finalSource !== "ADMIN") {
+    patch.final_estimate_min = toNumber_(estimate.min, 0);
+    patch.final_estimate_max = toNumber_(estimate.max, 0);
+    patch.final_estimate_source = "AUTO";
+  }
+
+  updateRowFields_(found.sheet, found.rowNo, found.meta, patch);
+  for (var key in patch) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+    found.data[key] = patch[key];
+  }
+  cacheResultBootstrap_(found.data, estimate);
+
+  return {
+    success: true,
+    request_id: rid,
+    project_type: projectType,
+    estimate_before: { min: beforeMin, max: beforeMax },
+    estimate_after: { min: toNumber_(estimate.min, 0), max: toNumber_(estimate.max, 0) },
+    area_py: patch.area_py,
+    flow_mode: patch.flow_mode,
+    preset_bundle_id: patch.preset_bundle_id
+  };
+}
+
+function adminRepairAutoEstimates(credential, options) {
+  ensureSpreadsheetId_();
+  ensurePrequoteOperationalSchema_();
+  assertAdminCredential_(credential);
+
+  var opts = options && typeof options === "object" ? options : {};
+  var requestedIds = Array.isArray(opts.request_ids) ? opts.request_ids : [];
+  var limit = Math.max(Number(opts.limit || 30), 1);
+  var targetIds = [];
+
+  for (var i = 0; i < requestedIds.length; i++) {
+    var rid = String(requestedIds[i] || "").trim();
+    if (!rid || targetIds.indexOf(rid) >= 0) continue;
+    targetIds.push(rid);
+  }
+
+  if (!targetIds.length) {
+    var rows = readAllRows_("Requests");
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r] || {};
+      var rid2 = String(row.request_id || "").trim();
+      var projectType = String(row.project_type || "").trim().toUpperCase();
+      var flowMode = String(row.flow_mode || "").trim().toUpperCase();
+      var shouldRepair = false;
+      if (projectType === "COMMERCIAL" && toNumber_(row.estimate_min, 0) === 0 && toNumber_(row.estimate_max, 0) === 0) {
+        shouldRepair = true;
+      }
+      if (projectType === "RESIDENTIAL" && flowMode === "PRESET" && !String(row.area_py || "").trim()) {
+        shouldRepair = true;
+      }
+      if (!shouldRepair || !rid2 || targetIds.indexOf(rid2) >= 0) continue;
+      targetIds.push(rid2);
+      if (targetIds.length >= limit) break;
+    }
+  }
+
+  var repaired = [];
+  var skipped = [];
+  for (var t = 0; t < targetIds.length && repaired.length + skipped.length < limit; t++) {
+    var result = repairStoredAutoEstimate_(targetIds[t]);
+    if (result && result.success) repaired.push(result);
+    else skipped.push(result || { success: false, request_id: targetIds[t], reason: "unknown" });
+  }
+
+  return {
+    success: skipped.length === 0,
+    repaired_count: repaired.length,
+    skipped_count: skipped.length,
+    repaired: repaired,
+    skipped: skipped
+  };
+}
+
 /**
  * Submit completed survey and calculate pre-quote estimate.
  * @param {Object} payload - { answers: {code: value}, contact: {name, phone, email, method, note}, files: [] }
@@ -2196,6 +2439,8 @@ function submitSurvey(payload) {
     var shareToken = token_().slice(0, 32);
     var now = nowIso_();
     var projectType = String(answers.Q000_PROJECT_TYPE || "").toUpperCase();
+    answers = normalizeSurveyAnswers_(answers, projectType);
+    projectType = String(answers.Q000_PROJECT_TYPE || projectType || "").toUpperCase();
     var flowMode = String(answers.Q000_FLOW_MODE || "").toUpperCase();
     var tags = calculateTags_(answers);
     var estimate = calculateEstimate_(answers, projectType);
@@ -2386,6 +2631,7 @@ function calculateTags_(answers) {
 // ============================================================
 
 function calculateEstimate_(answers, projectType) {
+  answers = normalizeSurveyAnswers_(answers, projectType);
   var rules = readStaticRowsCached_("EstimateRules").filter(function(r) {
     return ynToBool_(r.is_active);
   });
@@ -2482,8 +2728,7 @@ function calculateEstimate_(answers, projectType) {
 function scoreBaseRule_(rule, answers, projectType) {
   // Match housing_type
   var rHousing = String(rule.housing_type || "").toUpperCase().trim();
-  var aHousing = String(answers.R001_HOUSING_TYPE || answers.C001_BIZ_TYPE || "").toUpperCase().trim();
-  if (projectType === "COMMERCIAL") aHousing = String(answers.C001_BIZ_TYPE || "COMMERCIAL").toUpperCase();
+  var aHousing = normalizeEstimateHousingType_(projectType, answers);
 
   if (rHousing && aHousing && rHousing !== aHousing) return -1;
 
@@ -3306,17 +3551,13 @@ function buildResultDataCacheKey_(requestRow) {
   var rid = String(row.request_id || "").trim();
   var shareToken = String(row.share_token || "").trim();
   if (!rid || !shareToken) return "";
+  // Simplified cache key: use updated_at as version stamp instead of 8 mutable fields.
+  // This dramatically improves cache hit rate — only invalidates when row is actually updated.
   return [
-    "result-data",
+    "result-data-v2",
     rid,
     shareToken,
-    String(row.updated_at || row.submitted_at || row.created_at || ""),
-    String(row.estimate_min || ""),
-    String(row.estimate_max || ""),
-    String(row.final_estimate_min || ""),
-    String(row.final_estimate_max || ""),
-    String(row.recommendation_count || ""),
-    String(row.final_recommendation_count || "")
+    String(row.updated_at || row.created_at || "")
   ].join("|");
 }
 
@@ -4808,10 +5049,12 @@ function adminRecalculateRequest(credential, requestId, payload) {
     if (Object.prototype.hasOwnProperty.call(overrideAnswers, overrideKey)) mergedAnswers[overrideKey] = overrideAnswers[overrideKey];
   }
 
-  var projectType = String(found.data.project_type || mergedAnswers.Q000_PROJECT_TYPE || "").trim().toUpperCase();
-  var tags = calculateTags_(mergedAnswers);
-  var estimate = calculateEstimate_(mergedAnswers, projectType);
-  var recommendations = getRecommendations_(tags, mergedAnswers, projectType).map(function(item, index) {
+  var calcState = buildRequestAutoEstimateState_(found.data, mergedAnswers);
+  var projectType = calcState.projectType;
+  var tags = calcState.tags;
+  var estimate = calcState.estimate;
+  var normalizedAnswers = calcState.answers;
+  var recommendations = getRecommendations_(tags, normalizedAnswers, projectType).map(function(item, index) {
     return normalizeAdminRecommendationItem_(item, index + 1, "AUTO");
   });
   var now = nowIso_();
@@ -5516,6 +5759,7 @@ function sendSlackWebhook_(requestId, eventType, dedupKey, payloadObj) {
   var response = null;
   var code = 0;
   var errorText = "";
+  var authScopeError = false;
   try {
     response = UrlFetchApp.fetch(cfg.webhook_url, {
       method: "post",
@@ -5529,6 +5773,7 @@ function sendSlackWebhook_(requestId, eventType, dedupKey, payloadObj) {
     }
   } catch (e) {
     errorText = String(e && e.message ? e.message : e);
+    authScopeError = /script\.external_request|UrlFetchApp\.fetch/i.test(errorText);
   }
   appendNotificationLog_({
     request_id: requestId,
@@ -5537,13 +5782,19 @@ function sendSlackWebhook_(requestId, eventType, dedupKey, payloadObj) {
     dedup_key: dedupKey,
     recipient_key: "channel",
     recipient_value: cfg.channel || "",
-    status: errorText ? "FAILED" : "SENT",
+    status: errorText ? (authScopeError ? "SKIPPED" : "FAILED") : "SENT",
     created_at: createdAt,
     sent_at: errorText ? "" : nowIso_(),
     last_error: errorText,
     payload: body
   });
-  return { ok: !errorText, skipped: false, error: errorText, http_code: code };
+  return {
+    ok: !errorText,
+    skipped: !!authScopeError,
+    reason: authScopeError ? "missing_external_request_scope" : "",
+    error: errorText,
+    http_code: code
+  };
 }
 
 function buildSlackRequestText_(requestRow, eventType, extras) {
@@ -6666,6 +6917,60 @@ function setupOperationalNotificationsTrigger() {
   var mins = Math.max(Number(settings.sync_interval_minutes || 30), 10);
   ScriptApp.newTrigger("runOperationalNotifications_").timeBased().everyMinutes(mins).create();
   return { enabled: true, mode: mode, interval: mins };
+}
+
+function applyReleaseSettings_ADMIN(entries, credential) {
+  ensureSpreadsheetId_();
+  if (credential) assertAdminCredential_(credential);
+  else assertEditorAdminExecution_();
+
+  var ss = getSpreadsheet_();
+  var sh = ss.getSheetByName("Settings");
+  if (!sh) sh = ss.insertSheet("Settings");
+
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, 2).setValues([["key", "value"]]);
+  } else {
+    var header = sh.getRange(1, 1, 1, 2).getValues()[0];
+    if (String(header[0] || "").trim() !== "key" || String(header[1] || "").trim() !== "value") {
+      sh.getRange(1, 1, 1, 2).setValues([["key", "value"]]);
+    }
+  }
+
+  var lastRow = sh.getLastRow();
+  var values = lastRow >= 2 ? sh.getRange(2, 1, lastRow - 1, 2).getValues() : [];
+  var indexByKey = Object.create(null);
+  for (var i = 0; i < values.length; i++) {
+    var key = String(values[i][0] || "").trim();
+    if (!key || indexByKey[key]) continue;
+    indexByKey[key] = i + 2;
+  }
+
+  var list = Array.isArray(entries) ? entries : [];
+  var touched = [];
+  for (var j = 0; j < list.length; j++) {
+    var item = list[j] || {};
+    var itemKey = String(item.key || "").trim();
+    if (!itemKey) continue;
+    var itemValue = String(item.value || "").trim();
+    var rowNo = Number(indexByKey[itemKey] || 0);
+    if (!rowNo) {
+      rowNo = sh.getLastRow() + 1;
+      sh.getRange(rowNo, 1, 1, 2).setValues([[itemKey, itemValue]]);
+      indexByKey[itemKey] = rowNo;
+      touched.push({ key: itemKey, value: itemValue, action: "added" });
+      continue;
+    }
+    sh.getRange(rowNo, 2, 1, 1).setValue(itemValue);
+    touched.push({ key: itemKey, value: itemValue, action: "updated" });
+  }
+
+  invalidateSettingsCache_(ss.getId());
+  return {
+    ok: true,
+    spreadsheet_id: String(ss.getId() || "").trim(),
+    touched: touched
+  };
 }
 
 function runScheduledSync_() {
