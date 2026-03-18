@@ -144,6 +144,11 @@ export default function SurveyLanding({
 
         {/* Content over image */}
         <div className="relative z-10 w-full max-w-[440px] mx-auto">
+          {/* Catchphrase */}
+          <p className="font-serif text-sm text-[#b9a79e] tracking-[0.15em] mb-3 italic">
+            이상이 일상이 되는 시간
+          </p>
+
           {/* Tag */}
           <span className="inline-block font-sans text-xs font-semibold tracking-[0.18em] text-[#8b6d4b] uppercase mb-5 px-3 py-1.5 rounded-full bg-[#8b6d4b]/[0.08]">
             {tag}
