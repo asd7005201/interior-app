@@ -17,12 +17,10 @@ if sys.stdout.encoding != "utf-8":
 
 from . import config
 from .sheets_client import append_to_inbox, append_to_logs
+from .drive_manager import ensure_folder_path, upload_image_from_url
 
-# Drive 업로드는 선택적 — 서비스 계정 저장소 할당량 문제로 비활성화 가능
-ENABLE_DRIVE_UPLOAD = False
-
-if ENABLE_DRIVE_UPLOAD:
-    from .drive_manager import ensure_folder_path, upload_image_from_url
+# Drive 업로드 활성화 (OAuth 사용자 인증 사용)
+ENABLE_DRIVE_UPLOAD = True
 
 
 class BaseCrawler(ABC):

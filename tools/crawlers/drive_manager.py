@@ -1,19 +1,19 @@
-"""Google Drive 폴더/이미지 관리"""
+"""Google Drive 폴더/이미지 관리 — OAuth 사용자 인증 사용"""
 import io
 import requests
-from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from . import config
 
 _drive_service = None
-_folder_cache: dict[str, str] = {}   # "벽지/신한벽지/실크" → folder_id
+_folder_cache: dict[str, str] = {}   # "벽지/신한벽지/실크" -> folder_id
 
 
 def _get_drive():
     global _drive_service
     if _drive_service is None:
-        creds = Credentials.from_service_account_file(config.SERVICE_ACCOUNT_PATH, scopes=config.SCOPES)
+        from .oauth_helper import get_oauth_credentials
+        creds = get_oauth_credentials()
         _drive_service = build("drive", "v3", credentials=creds)
     return _drive_service
 
@@ -65,7 +65,7 @@ def ensure_folder_path(path_parts: list[str]) -> str:
 
 def upload_image_from_url(image_url: str, folder_id: str, filename: str) -> dict:
     """
-    이미지 URL에서 다운로드 → Drive 폴더에 업로드.
+    이미지 URL에서 다운로드 -> Drive 폴더에 업로드.
     반환: {"file_id": ..., "file_name": ...}
     """
     resp = requests.get(image_url, headers=config.REQUEST_HEADERS, timeout=config.REQUEST_TIMEOUT)
