@@ -540,7 +540,7 @@ export default function ResultPage() {
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
               <div className="flex items-center gap-4 text-sm text-white/70">
-                <a href="tel:010-0000-0000" className="flex items-center gap-1.5 hover:text-white transition-colors">
+                <a href="tel:02-1234-5678" className="flex items-center gap-1.5 hover:text-white transition-colors">
                   <Phone className="h-3.5 w-3.5" />
                   전화 상담
                 </a>

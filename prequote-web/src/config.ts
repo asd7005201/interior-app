@@ -397,9 +397,9 @@ export const contactConfig: ContactConfig = {
     messageLabel: "문의내용",
     messagePlaceholder: "문의하실 내용을 입력하세요",
   },
-  submitText: "볂내기",
+  submitText: "보내기",
   submittingText: "볂내는 중...",
-  submittedText: "볂내기 완료",
+  submittedText: "보내기 완료",
   successMessage: "문의가 성공적으로 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.",
   backgroundImage: "/images/hero-interior.jpg",
 };
@@ -467,7 +467,7 @@ export const footerConfig: FooterConfig = {
     { label: "이용약관", href: "#" },
     { label: "개인정보처리방침", href: "#" },
   ],
-  copyrightText: "© 2024 우아한 인테리어. All rights reserved.",
+  copyrightText: "© 2026 우아한 인테리어. All rights reserved.",
   socialLinks: [
     { icon: "Instagram", label: "Instagram", href: "https://instagram.com" },
     { icon: "Facebook", label: "Facebook", href: "https://facebook.com" },
@@ -600,7 +600,7 @@ export const aboutConfig: AboutConfig = {
       heading: "공간에 가치를 더하다",
       paragraphs: [
         "우아한 인테리어는 단순히 예쁜 공간을 만드는 것을 넘어, 그곳에 사는 사람들의 삶의 질을 높이는 것을 목표로 합니다.",
-        "每一个 프로젝트는 고객의 꿈과 우리의 전문성이 만나 완성되는 특별한 여정입니다.",
+        "모든 프로젝트는 고객의 꿈과 우리의 전문성이 만나 완성되는 특별한 여정입니다.",
       ],
       quote: "좋은 공간은 좋은 삶의 시작입니다.",
       attribution: "— 우아한 인테리어",
