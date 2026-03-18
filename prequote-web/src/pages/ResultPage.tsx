@@ -335,10 +335,10 @@ export default function ResultPage() {
                 가견적 결과
               </span>
               <h1 className="mt-4 mb-3 font-serif text-[clamp(1.8rem,4vw,2.6rem)] leading-[1.05] tracking-tight text-[#2c2c2c]">
-                먼저 금액 범위를 확인하세요
+                입력하신 조건에 맞는 예상 견적입니다
               </h1>
               <p className="text-sm leading-relaxed text-[#696969]">
-                결과 요약을 먼저 보여드리고, 상세 응답과 추천 자재는 아래에서 이어서 정리합니다.
+                결과를 먼저 확인하시고, 세부사항은 전문 컨설턴트 상담 시 안내드립니다.
               </p>
               <div className="mt-5 rounded-2xl border border-[#8b6d4b]/15 bg-[#8b6d4b]/5 px-4 py-3 text-sm leading-relaxed text-[#696969]">
                 {notice}
@@ -395,7 +395,7 @@ export default function ResultPage() {
           <div className="grid gap-5 md:grid-cols-2">
             {/* ---- STEP 1: 접수 요약 ---- */}
             <section className="bg-white/[0.94] rounded-[28px] border border-[rgba(122,116,108,.14)] shadow-[0_18px_42px_rgba(32,29,24,.08)] p-6">
-              <SectionHead step={1} icon={<ClipboardList className="h-4 w-4" />} label="STEP 1" title="접수 요약" desc="입력하신 기본 정보를 먼저 정리했습니다." />
+              <SectionHead step={1} icon={<ClipboardList className="h-4 w-4" />} label="STEP 1" title="프로젝트 개요" desc="입력하신 프로젝트 기본 정보입니다." />
               <div className="space-y-2.5">
                 {scopeBadges.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-3">
@@ -420,7 +420,7 @@ export default function ResultPage() {
 
             {/* ---- STEP 2: 체크 포인트 ---- */}
             <section className="bg-white/[0.94] rounded-[28px] border border-[rgba(122,116,108,.14)] shadow-[0_18px_42px_rgba(32,29,24,.08)] p-6">
-              <SectionHead step={2} icon={<ShieldCheck className="h-4 w-4" />} label="STEP 2" title="체크 포인트" desc="추가 확인이 필요한 내용입니다." />
+              <SectionHead step={2} icon={<ShieldCheck className="h-4 w-4" />} label="STEP 2" title="확인이 필요한 사항" desc="사전에 확인해야 할 내용입니다." />
               {flags.length === 0 ? (
                 <EmptyBox text="추가 확인이 필요한 항목이 없습니다." />
               ) : (
@@ -450,7 +450,7 @@ export default function ResultPage() {
 
             {/* ---- STEP 3: 추천 자재 ---- */}
             <section className="bg-white/[0.94] rounded-[28px] border border-[rgba(122,116,108,.14)] shadow-[0_18px_42px_rgba(32,29,24,.08)] p-6">
-              <SectionHead step={3} icon={<Package className="h-4 w-4" />} label="STEP 3" title="추천 자재" desc="저장된 추천을 먼저 보여줍니다." />
+              <SectionHead step={3} icon={<Package className="h-4 w-4" />} label="STEP 3" title="맞춤 추천 자재" desc="프로젝트에 적합한 자재를 추천합니다." />
               {recStatus === 'PENDING' ? (
                 <div className="space-y-3">
                   <Skeleton className="h-20 rounded-2xl" />
@@ -458,7 +458,7 @@ export default function ResultPage() {
                   <p className="text-center text-xs text-[#696969] mt-2">추천 자재를 준비하는 중입니다...</p>
                 </div>
               ) : recs.length === 0 ? (
-                <EmptyBox text="아직 추천 자재가 준비되지 않았습니다. 상담 시 맞춤 자재를 안내해드립니다." />
+                <EmptyBox text="전문 컨설턴트가 프로젝트에 적합한 자재를 직접 선별하여 안내드립니다." />
               ) : (
                 <div className="space-y-3">
                   {recs.map((item, i) => (
@@ -470,7 +470,7 @@ export default function ResultPage() {
 
             {/* ---- STEP 4: 설문 응답 ---- */}
             <section className="bg-white/[0.94] rounded-[28px] border border-[rgba(122,116,108,.14)] shadow-[0_18px_42px_rgba(32,29,24,.08)] p-6">
-              <SectionHead step={4} icon={<Info className="h-4 w-4" />} label="STEP 4" title="설문 응답" desc="입력한 내용을 다시 확인할 수 있습니다." />
+              <SectionHead step={4} icon={<Info className="h-4 w-4" />} label="STEP 4" title="입력하신 내용" desc="설문에서 입력하신 내용을 확인할 수 있습니다." />
               {answers.length === 0 ? (
                 <EmptyBox text="설문 응답을 정리하는 중입니다." />
               ) : (
@@ -517,7 +517,7 @@ export default function ResultPage() {
           {/* ============================================================ */}
           <div className="flex items-center justify-center gap-2 text-sm text-[#696969] py-2">
             <CheckCircle2 className="h-4 w-4 text-[#8b6d4b]" />
-            이 범위는 실제 상담 시 확정됩니다
+            실측 후 정확한 견적을 안내드립니다
           </div>
 
           {/* ============================================================ */}
@@ -525,10 +525,10 @@ export default function ResultPage() {
           {/* ============================================================ */}
           <section className="bg-gradient-to-br from-[#8b6d4b] to-[#6b5139] rounded-[28px] shadow-[0_18px_42px_rgba(32,29,24,.16)] p-8 md:p-10 text-center text-white">
             <h2 className="font-serif text-[clamp(1.4rem,3vw,2rem)] leading-tight mb-3">
-              무료 상담을 예약하세요
+              전문 컨설턴트와 상담 예약하기
             </h2>
             <p className="text-white/70 text-sm mb-6 max-w-md mx-auto">
-              전문 인테리어 컨설턴트가 맞춤 견적과 자재를 안내해 드립니다.
+              실측과 맞춤 자재 안내를 포함한 무료 상담을 예약하실 수 있습니다.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Button

@@ -25,8 +25,8 @@
     --border: 30 6% 90%;
     --input: 30 6% 90%;
     --ring: 29 30% 42%;
-    --radius: 0px;
-    
+    --radius: 12px;
+
     --shibumi-brown: #8b6d4b;
     --shibumi-black: #000000;
     --shibumi-dark-gray: #333333;
@@ -35,9 +35,14 @@
     --shibumi-white: #ffffff;
     --shibumi-accent-dark: #423d3f;
     --shibumi-accent-warm: #b9a79e;
-    
+
     --font-serif: 'DM Serif Display', serif;
     --font-sans: 'Libre Franklin', sans-serif;
+
+    /* Survey-specific design tokens */
+    --survey-bg: #faf9f7;
+    --survey-card-border: #ebe7e3;
+    --survey-accent-light: #f3ede7;
   }
 }
 
@@ -45,11 +50,11 @@
   * {
     @apply border-border;
   }
-  
+
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
@@ -58,29 +63,29 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
     font-weight: 400;
     line-height: 1;
   }
-  
+
   h1 {
     font-size: clamp(2.5rem, 5vw, 3.8rem);
   }
-  
+
   h2 {
     font-size: clamp(2rem, 4vw, 3.2rem);
   }
-  
+
   h3 {
     font-size: clamp(1.5rem, 3vw, 2.4rem);
   }
-  
+
   h4 {
     font-size: 1.125rem;
   }
-  
+
   p {
     font-size: clamp(0.9rem, 1.5vw, 1.125rem);
     font-weight: 300;
@@ -92,43 +97,63 @@
   .font-serif {
     font-family: var(--font-serif);
   }
-  
+
   .font-sans {
     font-family: var(--font-sans);
   }
-  
+
   .text-shibumi-brown {
     color: var(--shibumi-brown);
   }
-  
+
   .bg-shibumi-brown {
     background-color: var(--shibumi-brown);
   }
-  
+
   .parallax-bg {
     background-attachment: fixed;
     background-size: cover;
     background-position: center;
   }
-  
+
   @media (max-width: 768px) {
     .parallax-bg {
       background-attachment: scroll;
     }
   }
-  
+
   .animate-fade-up {
     animation: fadeUp 0.6s ease forwards;
   }
-  
+
   .animate-fade-in {
     animation: fadeIn 0.6s ease forwards;
   }
-  
+
   .animate-slide-left {
     animation: slideLeft 0.6s ease forwards;
   }
-  
+
+  .animate-shimmer {
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-out-left {
+    animation: slideOutLeft 0.3s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .animate-progress-pulse {
+    animation: progressPulse 2s ease-in-out infinite;
+  }
+
   @keyframes fadeUp {
     from {
       opacity: 0;
@@ -139,7 +164,7 @@
       transform: translateY(0);
     }
   }
-  
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -148,7 +173,7 @@
       opacity: 1;
     }
   }
-  
+
   @keyframes slideLeft {
     from {
       opacity: 0;
@@ -159,47 +184,109 @@
       transform: translateX(0);
     }
   }
-  
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideOutLeft {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes progressPulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
   .card-hover {
     transition: all 0.3s ease-in-out;
   }
-  
+
   .card-hover:hover {
     transform: translateY(-3px);
     box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15);
   }
-  
+
   .link-hover {
     transition: all 0.4s ease-in-out;
   }
-  
+
   .link-hover:hover {
     transform: translateX(5px);
     color: var(--shibumi-black);
   }
-  
+
   .btn-hover {
     transition: all 0.4s ease-in-out;
   }
-  
+
   .btn-hover:hover {
     opacity: 0.85;
     transform: translateY(-2px);
   }
-  
+
   .image-scale {
     transition: transform 0.3s ease-in-out;
   }
-  
+
   .image-scale:hover img {
     transform: scale(1.1);
   }
-  
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }

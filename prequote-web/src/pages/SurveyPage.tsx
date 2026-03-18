@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Plus, X, CheckCircle2 } from 'lucide-react';
 
 import type {
   SurveyConfig,
@@ -18,6 +18,9 @@ import ProgressBar from '@/components/survey/ProgressBar';
 import SingleSelectCard from '@/components/survey/SingleSelectCard';
 import MultiSelectCard from '@/components/survey/MultiSelectCard';
 import SurveyLanding from '@/components/survey/SurveyLanding';
+import SurveySubmitting from '@/components/survey/SurveySubmitting';
+import SurveySkeleton from '@/components/survey/SurveySkeleton';
+import SectionBreak from '@/components/survey/SectionBreak';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -125,6 +128,8 @@ export default function SurveyPage() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [files, setFiles] = useState<File[]>([]);
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const [transitioning, setTransitioning] = useState(false);
 
   // Track previous step count for clamping
   const prevStepCountRef = useRef(0);
@@ -256,12 +261,17 @@ export default function SurveyPage() {
       if (shouldAutoAdvance && currentStep?.questions.length === 1) {
         if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
         autoAdvanceTimerRef.current = setTimeout(() => {
-          setStep((s) => {
-            // Re-check steps length at execution time
-            // (steps may have changed due to answer)
-            return s < steps.length - 1 ? s + 1 : s;
-          });
-          window.scrollTo(0, 0);
+          setDirection('next');
+          setTransitioning(true);
+          setTimeout(() => {
+            setStep((s) => {
+              // Re-check steps length at execution time
+              // (steps may have changed due to answer)
+              return s < steps.length - 1 ? s + 1 : s;
+            });
+            setTransitioning(false);
+            window.scrollTo(0, 0);
+          }, 200);
         }, AUTO_ADVANCE_DELAY);
       }
     },
@@ -342,15 +352,25 @@ export default function SurveyPage() {
 
   const handleNext = useCallback(() => {
     if (step < steps.length - 1) {
-      setStep((s) => s + 1);
-      window.scrollTo(0, 0);
+      setDirection('next');
+      setTransitioning(true);
+      setTimeout(() => {
+        setStep((s) => s + 1);
+        setTransitioning(false);
+        window.scrollTo(0, 0);
+      }, 200);
     }
   }, [step, steps.length]);
 
   const handlePrev = useCallback(() => {
     if (step > 0) {
-      setStep((s) => s - 1);
-      window.scrollTo(0, 0);
+      setDirection('prev');
+      setTransitioning(true);
+      setTimeout(() => {
+        setStep((s) => s - 1);
+        setTransitioning(false);
+        window.scrollTo(0, 0);
+      }, 200);
     } else {
       // Undo entry selections or go back to landing
       setAnswers((prev) => {
@@ -442,6 +462,9 @@ export default function SurveyPage() {
   // ── Render: Landing ──────────────────────────────────────────────────────
 
   if (screen === 'landing') {
+    if (loading && !config) {
+      return <SurveySkeleton />;
+    }
     return (
       <SurveyLanding config={config} loading={loading} onStart={handleStart} />
     );
@@ -450,15 +473,7 @@ export default function SurveyPage() {
   // ── Render: Submitting ───────────────────────────────────────────────────
 
   if (screen === 'submitting') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-5">
-        <Loader2 className="h-10 w-10 text-[#8b6d4b] animate-spin mb-5" />
-        <p className="font-sans text-base font-medium text-[#333]">
-          견적을 계산하고 있어요...
-        </p>
-        <p className="font-sans text-sm text-[#696969] mt-2">잠시만 기다려주세요</p>
-      </div>
-    );
+    return <SurveySubmitting />;
   }
 
   // ── Render: Done ─────────────────────────────────────────────────────────
@@ -469,8 +484,8 @@ export default function SurveyPage() {
         <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mb-5">
           <CheckCircle2 className="h-8 w-8 text-emerald-500" />
         </div>
-        <h2 className="font-serif text-2xl text-[#333] mb-3">결과가 준비되었습니다!</h2>
-        <p className="font-sans text-sm text-[#696969]">잠시 후 결과 페이지로 이동합니다.</p>
+        <h2 className="font-serif text-2xl text-[#333] mb-3">견적 결과가 준비되었습니다</h2>
+        <p className="font-sans text-sm text-[#696969]">전문 컨설턴트가 확인 후 상세 안내드리겠습니다.</p>
       </div>
     );
   }
@@ -486,9 +501,9 @@ export default function SurveyPage() {
     : '다음';
 
   return (
-    <div className="min-h-screen bg-white pb-28">
+    <div className="min-h-screen bg-[#faf9f7] pb-28">
       {/* Progress bar */}
-      <ProgressBar current={step} total={steps.length} />
+      <ProgressBar current={step} total={steps.length} isBranchIntro={isBranchIntro} />
 
       {/* Back button */}
       <button
@@ -500,12 +515,26 @@ export default function SurveyPage() {
       </button>
 
       {/* Step content */}
-      <div className="pt-16 max-w-[520px] mx-auto px-5">
+      <div
+        key={step}
+        className={`pt-16 max-w-[520px] mx-auto px-5 ${
+          transitioning
+            ? 'opacity-0 transition-opacity duration-200'
+            : direction === 'next'
+              ? 'animate-[slideInRight_300ms_ease-out]'
+              : 'animate-[slideInLeft_300ms_ease-out]'
+        }`}
+      >
+        {/* Section break */}
+        {currentStep.sectionBreakMessage && (
+          <SectionBreak
+            message={currentStep.sectionBreakMessage}
+            subtext={currentStep.sectionBreakSubtext}
+          />
+        )}
+
         {/* Step header */}
         <div className="mb-6 animate-fade-in">
-          <div className="font-sans text-xs font-medium text-[#8b6d4b] tracking-wide mb-1">
-            {isBranchIntro ? '시작' : `${step + 1} / ${steps.length}`}
-          </div>
           <h2 className="font-serif text-xl text-[#333] leading-snug">
             {currentStep.title}
           </h2>
@@ -739,9 +768,26 @@ export default function SurveyPage() {
               onClick={handleNext}
               className="block w-full text-center mt-2 font-sans text-xs text-[#999] hover:text-[#696969] transition-colors"
             >
-              건너뛰기
+              나중에 답변 가능
             </button>
           )}
+          {/* Trust micro-copy */}
+          {(() => {
+            const hasContact = currentStep.questions.some((q) => q.question_code.startsWith('Q90'));
+            const hasBudget = currentStep.questions.some((q) => q.question_code.includes('BUDGET'));
+            const trustText = hasContact
+              ? '개인정보는 견적 상담 목적으로만 사용됩니다'
+              : hasBudget
+                ? '정확한 견적을 위한 참고 정보입니다'
+                : isLastStep
+                  ? '제출 후 전문 컨설턴트가 직접 검토합니다'
+                  : null;
+            return trustText ? (
+              <p className="text-center mt-2 font-sans text-[11px] text-[#999] leading-relaxed">
+                {trustText}
+              </p>
+            ) : null;
+          })()}
         </div>
       </div>
     </div>

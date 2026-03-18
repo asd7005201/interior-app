@@ -46,11 +46,25 @@ function buildResidential(steps: Step[], q: SurveyQuestion[], detail: boolean): 
   pushQuestion(steps, q, 'R002_AREA');
   pushGroup(steps, q, ['R003_CONDITION', 'R004_OCCUPANCY'], '현재 상태', '집 상태와 거주 상태를 알려주세요.');
   if (detail) pushQuestion(steps, q, 'R005_REASON');
+
+  // Section break: after condition/occupancy group → spaces step
+  const beforeSpaces = steps.length;
   pushQuestion(steps, q, 'R010_SPACES');
+  if (steps.length > beforeSpaces) {
+    steps[steps.length - 1].sectionBreakMessage = '기본 정보를 확인했습니다. 공사할 공간을 선택해주세요.';
+  }
+
   pushQuestion(steps, q, 'R011_SCOPE_LEVEL');
   pushQuestion(steps, q, 'R012_TRADES');
   if (detail) pushQuestion(steps, q, 'R013_STRUCTURE');
+
+  // Section break: after R012_TRADES → R100_DEMO_SCOPE
+  const beforeDemo = steps.length;
   pushQuestion(steps, q, 'R100_DEMO_SCOPE');
+  if (steps.length > beforeDemo) {
+    steps[steps.length - 1].sectionBreakMessage = '공사 항목을 선택했습니다. 각 항목의 세부사항을 알려주세요.';
+  }
+
   pushGroup(steps, q, ['R110_BATH_SCOPE', 'R111_BATH_LEVEL'], '욕실 공사', '욕실 공사 범위를 선택해주세요.');
   pushQuestion(steps, q, 'R112_BATH_GRADE');
   pushGroup(steps, q, ['R120_KITCHEN_SCOPE', 'R121_KITCHEN_LAYOUT'], '주방 공사', '주방 공사 범위를 선택해주세요.');
@@ -61,7 +75,14 @@ function buildResidential(steps: Step[], q: SurveyQuestion[], detail: boolean): 
   pushQuestion(steps, q, 'R150_LIGHT_SCOPE');
   pushQuestion(steps, q, 'R151_LIGHT_TYPE');
   pushQuestion(steps, q, 'R160_BUILTIN_SCOPE');
+
+  // Section break: after last trade-specific step → style step
+  const beforeStyle = steps.length;
   pushGroup(steps, q, ['R200_STYLE', 'R201_TONE'], '분위기와 톤', '원하시는 느낌을 선택해주세요.');
+  if (steps.length > beforeStyle) {
+    steps[steps.length - 1].sectionBreakMessage = '공사 범위가 정해졌습니다. 원하시는 분위기를 선택해주세요.';
+  }
+
   pushGroup(steps, q, ['R210_FAMILY', 'R211_PET'], '생활 정보', '가족 구성과 반려동물을 알려주세요.');
   pushQuestion(steps, q, 'R300_AGE');
   if (detail) pushQuestion(steps, q, 'R301_RISKS');
@@ -77,10 +98,24 @@ function buildCommercial(steps: Step[], q: SurveyQuestion[], detail: boolean): v
   pushQuestion(steps, q, 'C005_CUISINE_TYPE');
   pushQuestion(steps, q, 'C002_AREA');
   pushGroup(steps, q, ['C003_SITE_STATE', 'C004_OPERATION'], '공간 상태', '현재 공간과 영업 상태를 알려주세요.');
+
+  // Section break: after C003/C004 group → zones step
+  const beforeZones = steps.length;
   pushQuestion(steps, q, 'C010_ZONES');
+  if (steps.length > beforeZones) {
+    steps[steps.length - 1].sectionBreakMessage = '기본 정보를 확인했습니다. 공사 범위를 선택해주세요.';
+  }
+
   pushQuestion(steps, q, 'C011_SCOPE_LEVEL');
   pushQuestion(steps, q, 'C012_TRADES');
+
+  // Section break: after C012_TRADES → C110_DEMO_SCOPE
+  const beforeDemo = steps.length;
   pushQuestion(steps, q, 'C110_DEMO_SCOPE');
+  if (steps.length > beforeDemo) {
+    steps[steps.length - 1].sectionBreakMessage = '공사 항목을 선택했습니다. 세부사항을 알려주세요.';
+  }
+
   pushQuestion(steps, q, 'C120_KITCHEN_EXHAUST');
   pushQuestion(steps, q, 'C130_RESTROOM_SCOPE');
   pushQuestion(steps, q, 'C140_ELECTRICAL');
@@ -151,7 +186,10 @@ export function buildSteps(
     buildCommercial(steps, coreQ, detail);
   }
 
-  steps.push(makeContactStep(allQ));
+  // Section break: before contact step
+  const contactStep = makeContactStep(allQ);
+  contactStep.sectionBreakMessage = '견적에 필요한 정보가 거의 다 모였습니다!';
+  steps.push(contactStep);
   return filterSteps(steps);
 }
 

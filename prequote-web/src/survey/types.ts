@@ -94,6 +94,8 @@ export interface Step {
   title: string;
   desc?: string;
   isBranchIntro?: boolean;
+  sectionBreakMessage?: string;
+  sectionBreakSubtext?: string;
 }
 
 export interface SubmitResult {
