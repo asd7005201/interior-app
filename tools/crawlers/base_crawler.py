@@ -22,6 +22,30 @@ from .drive_manager import ensure_folder_path, upload_image_from_url
 # Drive 업로드 활성화 (OAuth 사용자 인증 사용)
 ENABLE_DRIVE_UPLOAD = True
 
+# trade_code → Drive 최상위 폴더명 매핑
+TRADE_CODE_FOLDERS = {
+    "wallpaper": "벽지",
+    "flooring": "장판",
+    "deco_tile": "데코타일",
+    "floor_sheet": "바닥시트지",
+    "interior_film": "시트지",
+    "paint": "페인트",
+    "waterproof": "방수에폭시",
+    "tile_paint": "페인트",
+    "door_paint": "페인트",
+    "molding": "몰딩",
+    "lighting": "조명",
+    "non_slip": "논슬립",
+    "stain": "스테인",
+    "primer": "프라이머",
+    "tile": "타일",
+    "faucet": "수전",
+    "toilet": "도기",
+    "basin": "도기",
+    "sink": "싱크대",
+    "door": "도어",
+}
+
 
 class BaseCrawler(ABC):
     """모든 크롤러의 베이스. 서브클래스에서 parse_product_list / parse_product_detail 구현."""
@@ -102,7 +126,11 @@ class BaseCrawler(ABC):
 
         if image_url and ENABLE_DRIVE_UPLOAD:
             try:
-                folder_path = ["벽지", self.brand]
+                # trade_code로 최상위 폴더 결정
+                trade_folder = TRADE_CODE_FOLDERS.get(self.trade_code, self.trade_code)
+                folder_path = [trade_folder]
+                if self.brand:
+                    folder_path.append(self.brand)
                 if material_type:
                     folder_path.append(material_type)
                 folder_id = ensure_folder_path(folder_path)
