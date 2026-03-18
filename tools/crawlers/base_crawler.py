@@ -107,7 +107,9 @@ class BaseCrawler(ABC):
                     folder_path.append(material_type)
                 folder_id = ensure_folder_path(folder_path)
                 ext = _guess_ext(image_url)
-                fname = f"{ingest_id}{ext}"
+                # 상품명으로 파일 저장 (특수문자 제거)
+                safe_name = _safe_filename(product.get("name", "") or ingest_id)
+                fname = f"{safe_name}{ext}"
                 upload_result = upload_image_from_url(image_url, folder_id, fname)
                 image_file_id = upload_result["file_id"]
                 image_file_name = upload_result["file_name"]
@@ -174,6 +176,19 @@ class BaseCrawler(ABC):
             "status": "done" if not self.errors else "partial",
             "message": "; ".join(self.errors[:3]) if self.errors else "OK",
         })
+
+
+def _safe_filename(name: str) -> str:
+    """파일명에 쓸 수 없는 문자 제거."""
+    import re
+    # 파일시스템 금지 문자 제거
+    safe = re.sub(r'[\\/:*?"<>|]', '', name)
+    # 연속 공백 정리
+    safe = re.sub(r'\s+', ' ', safe).strip()
+    # 너무 길면 자르기
+    if len(safe) > 100:
+        safe = safe[:100]
+    return safe or "unnamed"
 
 
 def _guess_ext(url: str) -> str:
