@@ -571,9 +571,12 @@ export default function SurveyPage() {
               )}
 
               {/* SINGLE_SELECT */}
-              {type === 'SINGLE_SELECT' && (
-                <div className="grid gap-2.5">
-                  {getOpts(q.question_id || code).map((opt) => (
+              {type === 'SINGLE_SELECT' && (() => {
+                const opts = getOpts(q.question_id || code);
+                const hasImages = opts.some((o) => !!o.option_image_url);
+                return (
+                <div className={hasImages ? 'grid grid-cols-2 gap-3' : 'grid gap-2.5'}>
+                  {opts.map((opt) => (
                     <SingleSelectCard
                       key={opt.option_code}
                       option={opt}
@@ -591,7 +594,8 @@ export default function SurveyPage() {
                     />
                   )}
                 </div>
-              )}
+                );
+              })()}
 
               {/* MULTI_SELECT */}
               {type === 'MULTI_SELECT' && (() => {
@@ -602,8 +606,9 @@ export default function SurveyPage() {
                 const selected = Array.isArray(answers[code])
                   ? (answers[code] as string[])
                   : [];
+                const hasImages = opts.some((o) => !!o.option_image_url);
                 return (
-                  <div className="grid gap-2.5">
+                  <div className={hasImages ? 'grid grid-cols-2 gap-3' : 'grid gap-2.5'}>
                     {opts.map((opt) => (
                       <MultiSelectCard
                         key={opt.option_code}

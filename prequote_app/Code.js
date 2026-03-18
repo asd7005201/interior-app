@@ -69,7 +69,9 @@ var SURVEY_CLIENT_OPTION_FIELDS_ = [
   "option_code",
   "option_label",
   "option_description",
-  "sort_order"
+  "sort_order",
+  "option_image_url",
+  "badge_text"
 ];
 var SURVEY_CLIENT_SCOPE_FIELDS_ = [
   "trigger_question_id",
