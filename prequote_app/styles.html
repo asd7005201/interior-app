@@ -223,4 +223,84 @@
 
   /* --- Scroll Lock --- */
   body.modal-open{overflow:hidden}
+
+  /* ══════════════════════════════════════════════════════════
+     ENHANCED SURVEY STYLES - Modern, polished look
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── Improved Option Cards ── */
+  .opt-card{
+    border-radius:var(--r-lg);padding:16px 20px;min-height:56px;
+    border:1.5px solid var(--color-line);
+    box-shadow:0 1px 3px rgba(26,24,22,.04);
+    transition:all 200ms var(--ease);
+  }
+  .opt-card:hover{
+    border-color:var(--color-primary);background:var(--color-primary-muted);
+    box-shadow:0 4px 12px rgba(47,107,94,.08);transform:translateY(-1px);
+  }
+  .opt-card:active{transform:scale(.99) translateY(0);transition-duration:80ms}
+  .opt-card.selected{
+    border-color:var(--color-primary);background:var(--color-primary-muted);
+    box-shadow:0 0 0 3px var(--color-primary-soft),0 4px 14px rgba(47,107,94,.12);
+    transform:translateY(-1px);
+  }
+  .opt-card .opt-radio{width:22px;height:22px;border:2px solid var(--color-warm-300);transition:all 200ms var(--ease)}
+  .opt-card.selected .opt-radio{border-color:var(--color-primary);background:var(--color-primary);box-shadow:0 0 8px rgba(47,107,94,.2)}
+  .opt-card.selected .opt-check{border-color:var(--color-primary);background:var(--color-primary);box-shadow:0 0 8px rgba(47,107,94,.2)}
+  .opt-label{font-size:15px;font-weight:600}
+  .opt-desc{font-size:13.5px;color:var(--color-text-sub)}
+
+  /* ── Better Button Styles ── */
+  .btn{border-radius:var(--r-lg);transition:all 200ms var(--ease);position:relative;overflow:hidden}
+  .btn-primary{box-shadow:0 2px 8px rgba(47,107,94,.15)}
+  .btn-primary:hover{box-shadow:0 4px 16px rgba(47,107,94,.25);transform:translateY(-1px)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-lg{border-radius:var(--r-lg);font-weight:700;letter-spacing:-.01em}
+
+  /* ── Progress Bar Enhancement ── */
+  .progress-bar{height:3px;background:var(--color-warm-100)}
+  .progress-bar .fill{background:linear-gradient(90deg,var(--color-primary),#4A8F7F);transition:width 500ms var(--ease)}
+
+  /* ── Step Header Enhancement ── */
+  .step-header{margin-bottom:28px}
+  .step-counter{font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--color-primary)}
+  .step-title{font-size:22px;font-weight:700;letter-spacing:-.02em}
+
+  /* ── Card Enhancement ── */
+  .card{border-radius:20px;box-shadow:0 2px 8px rgba(26,24,22,.06),0 0 1px rgba(26,24,22,.1)}
+
+  /* ── Hero Enhancement ── */
+  .hero h1{font-size:28px;letter-spacing:-.03em;font-weight:800}
+
+  /* ── Chip Enhancement ── */
+  .chip{border-radius:var(--r-full);font-weight:600;letter-spacing:.01em}
+  .chip-primary{background:rgba(47,107,94,.08);color:var(--color-primary);border:1px solid rgba(47,107,94,.12)}
+
+  /* ── Result Enhancement ── */
+  .result-amount{font-weight:800;letter-spacing:-.02em;color:var(--color-primary)}
+
+  /* ── Input Enhancement ── */
+  .input,.textarea,select{border-radius:var(--r-lg);transition:all 200ms var(--ease)}
+  .input:focus,.textarea:focus,select:focus{box-shadow:0 0 0 3px var(--color-primary-soft),0 2px 8px rgba(47,107,94,.08)}
+
+  /* ── Smoother Animations ── */
+  .fade-in{animation:fadeIn 350ms var(--ease)}
+  .slide-up{animation:slideUp 400ms var(--ease)}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── Admin Status Tags Enhancement ── */
+  .status-tag{font-weight:700;letter-spacing:.01em;border:1px solid transparent}
+  .status-NEW{border-color:rgba(47,107,94,.15)}
+  .status-CONTACTED{border-color:rgba(26,115,232,.15)}
+  .status-SCHEDULED{border-color:rgba(196,135,10,.15)}
+  .status-CONVERTED{border-color:rgba(47,107,94,.15)}
+  .status-CLOSED{border-color:rgba(122,116,108,.12)}
+
+  /* ── Admin Layout Enhancement ── */
+  .admin-header{background:rgba(255,255,255,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .stat-card{border:1px solid var(--color-line);border-radius:var(--r-lg);transition:all 200ms var(--ease)}
+  .stat-card:hover{box-shadow:0 4px 14px rgba(26,24,22,.08);transform:translateY(-1px)}
+  .stat-card .stat-value{font-weight:800;letter-spacing:-.02em}
 </style>

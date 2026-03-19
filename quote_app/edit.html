@@ -6,6 +6,53 @@
   <base target="_top">
   <?!= include('styles'); ?>
   <?!= include('ui'); ?>
+  <style>
+    /* ── Edit Page Enhancements ── */
+
+    /* Better table editing experience */
+    #itemsTbl td{padding:8px 6px;vertical-align:middle}
+    #itemsTbl input,#itemsTbl select,#itemsTbl textarea{min-height:34px;padding:6px 10px;font-size:12px;border-radius:6px;border:1px solid var(--c200);transition:all 140ms var(--ease)}
+    #itemsTbl input:focus,#itemsTbl select:focus,#itemsTbl textarea:focus{border-color:var(--pri);box-shadow:0 0 0 2px rgba(47,107,94,.08);z-index:1;position:relative}
+    #itemsTbl input[type="number"]{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+
+    /* Group add panel polish */
+    #groupAddPanel summary{padding:10px 0;font-weight:700;color:var(--c600);transition:color 140ms var(--ease)}
+    #groupAddPanel summary:hover{color:var(--pri)}
+    #groupAddPanel[open] summary span:first-child{transform:rotate(90deg)}
+
+    /* Better stat cards on edit page */
+    .stat-card{position:relative;overflow:hidden}
+    .stat-card::before{content:"";position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;background:rgba(47,107,94,.04);transform:translate(20px,-20px)}
+    .stat-card--gold::before{background:rgba(47,107,94,.08)}
+
+    /* Save/share section polish */
+    #btnSave{background:var(--pri);box-shadow:0 2px 8px rgba(47,107,94,.18)}
+    #btnSave:hover{background:var(--pri-dk);box-shadow:0 4px 16px rgba(47,107,94,.25);transform:translateY(-1px)}
+    #btnShare:hover{box-shadow:0 4px 12px rgba(28,26,23,.12);transform:translateY(-1px)}
+
+    /* Catalog modal improvements */
+    #catalogModal .bottom-sheet{border-radius:var(--r16) var(--r16) 0 0;box-shadow:0 -8px 32px rgba(28,26,23,.15)}
+    #catalogBody td{padding:8px 6px}
+    #catalogBody .thumb{border-radius:6px;transition:transform 140ms var(--ease)}
+    #catalogBody .thumb:hover{transform:scale(1.1)}
+
+    /* Template import modal improvements */
+    #templateImportModal .modal,#templateSaveModal .modal{border-radius:var(--r16);box-shadow:0 16px 48px rgba(28,26,23,.18)}
+
+    /* VAT checkbox area */
+    #vat_included{accent-color:var(--pri)}
+    #include_service_in_total,#include_option_in_total,#include_included_in_total{accent-color:var(--pri)}
+
+    /* Prequote context card */
+    #prequoteContextCard{border-radius:var(--r12);border:1px solid rgba(53,91,139,.15)!important;background:rgba(53,91,139,.04)!important}
+
+    /* Empty state for items */
+    #itemsEmptyState{padding:24px;border:1px dashed var(--c200);border-radius:var(--r8);color:var(--c500);background:var(--c50)}
+
+    /* Better delete/order button alignment */
+    .btn-order{border-radius:6px;transition:all 140ms var(--ease)}
+    .btn-order:hover{background:var(--pri-bg);border-color:rgba(47,107,94,.2);color:var(--pri)}
+  </style>
 </head>
 <body>
   <? var U = (typeof app_url !== 'undefined' && app_url) ? app_url : ""; ?>
