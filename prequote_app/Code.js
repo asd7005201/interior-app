@@ -616,6 +616,7 @@ function handleApiAction_(action, params, method) {
     if (action === "adminUpdateNextAction") return jsonResponse_({ ok: true, data: adminUpdateNextAction(params.credential, params.requestId, params.nextActionNote) });
     if (action === "adminRunMigration") return jsonResponse_({ ok: true, data: adminRunMigration(params.credential, params.migrationId) });
     if (action === "adminSetupNotificationsTrigger") return jsonResponse_({ ok: true, data: adminSetupNotificationsTrigger(params.credential) });
+    if (action === "adminExportStaticData") return jsonResponse_({ ok: true, data: adminExportStaticData(params.credential) });
 
     return jsonResponse_({ ok: false, error: "Unknown action: " + action });
   } catch (err) {
@@ -7119,6 +7120,38 @@ function adminRunMigration(credential, migrationId) {
   if (id === "survey_question_copy_v1") return migrateSurveyQuestionCopy();
   if (id === "survey_questions_v2") return migrateAddSurveyQuestionsV2();
   throw new Error("Unknown migration: " + id);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 시트 정적 데이터 내보내기 (GitHub 백업용, PII 제외)
+// ─────────────────────────────────────────────────────────────
+
+function adminExportStaticData(credential) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var ss = SpreadsheetApp.openById(getSpreadsheetId_());
+  var EXPORT_SHEETS = [
+    "Settings", "SurveyQuestions", "SurveyOptions", "SurveyLogic",
+    "SurveyTagRules", "SurveyProfiles", "QuestionScopeMap",
+    "QuickStartBundles", "EstimateRules", "UiContent", "AdminUsers"
+  ];
+  var result = { exported_at: new Date().toISOString(), sheets: {} };
+  EXPORT_SHEETS.forEach(function(name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet) { result.sheets[name] = null; return; }
+    var vals = sheet.getDataRange().getValues();
+    if (vals.length < 1) { result.sheets[name] = []; return; }
+    var headers = vals[0].map(function(h) { return String(h || "").trim(); });
+    var rows = [];
+    for (var i = 1; i < vals.length; i++) {
+      var row = {};
+      headers.forEach(function(h, hi) { row[h] = vals[i][hi]; });
+      rows.push(row);
+    }
+    result.sheets[name] = rows;
+    Utilities.sleep(200);
+  });
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────
