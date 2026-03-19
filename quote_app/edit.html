@@ -192,6 +192,7 @@
               <tbody id="itemsBody"></tbody>
             </table>
           </div>
+          <div id="itemsEmptyState" class="help-text" style="margin-top:12px; text-align:center; display:none;">항목이 없어요. '행 추가'를 눌러 시작하세요.</div>
         </div>
       </section>
 
@@ -410,7 +411,7 @@
 
 <script>
 (function(){
-  var currentQuoteId = null;
+  var currentQuoteId = "";
   var pendingQuoteId = "";
   var loadedPrequoteContext = null;
   var activeTr = null;
@@ -431,6 +432,7 @@
   var DEFAULT_INCLUDE_OPTION = String("N").toUpperCase();
   var DEFAULT_INCLUDE_INCLUDED = String("N").toUpperCase();
   var APP_URL = "<?= String(U || '') ?>";
+  var CUSTOMER_SHARE_ENABLED = false;
   var SERVER_PREFILL_ADMIN_PW = decodeURIComponent("<?= encodeURIComponent(String(PREFILL_ADMIN_PW || '')) ?>");
   var PW_KEY = "QUOTEAPP_ADMINPW_V1";
   var TEMPLATE_LIST_VER = "<?= String(getTemplateListVersion_()) ?>";
@@ -451,6 +453,58 @@
   }
   function setStatus(msg){
     $("status").innerText = msg || "";
+  }
+  function updateEditorActionState(){
+    var hasQuoteId = !!String(currentQuoteId || "").trim();
+    var btnDuplicate = $("btnDuplicate");
+    var btnExportCsv = $("btnExportCsv");
+    var btnSaveAsTemplate = $("btnSaveAsTemplate");
+    var btnShare = $("btnShare");
+    var links = $("links");
+
+    if (btnDuplicate) btnDuplicate.disabled = !hasQuoteId;
+    if (btnExportCsv) btnExportCsv.disabled = !hasQuoteId;
+    if (btnSaveAsTemplate) btnSaveAsTemplate.disabled = !hasQuoteId;
+    if (btnShare) {
+      btnShare.style.display = CUSTOMER_SHARE_ENABLED ? "" : "none";
+      btnShare.disabled = !CUSTOMER_SHARE_ENABLED || !hasQuoteId;
+    }
+
+    if (!links) return;
+    if (!CUSTOMER_SHARE_ENABLED) {
+      links.innerHTML = '<div class="help-text">현재 quote_app은 관리자 전용 배포라 고객 공유 링크를 만들 수 없어요.</div>';
+      return;
+    }
+    if (!hasQuoteId && !String(links.textContent || "").trim()) {
+      links.innerHTML = '<div class="help-text">저장한 뒤 링크를 만들 수 있어요.</div>';
+    }
+  }
+  function resetEditorForNewQuote(){
+    currentQuoteId = "";
+    pendingQuoteId = "";
+    loadedPrequoteContext = null;
+    activeTr = null;
+    $("editor").style.display = "block";
+    renderPrequoteContext(null);
+    $("customer_name").value = "";
+    $("site_name").value = "";
+    $("contact_name").value = "";
+    $("contact_phone").value = "";
+    $("memo").value = "";
+    $("vat_included").checked = (DEFAULT_VAT_INCLUDED === "Y");
+    $("include_service_in_total").checked = (DEFAULT_INCLUDE_SERVICE === "Y");
+    $("include_option_in_total").checked = (DEFAULT_INCLUDE_OPTION === "Y");
+    $("include_included_in_total").checked = (DEFAULT_INCLUDE_INCLUDED === "Y");
+    groupState = Object.create(null);
+    $("itemsBody").innerHTML = "";
+    ensureGroupState("misc", "기타", "", 9999);
+    refreshGroupSelectOptions("misc");
+    rebuildGroupedRows();
+    recalcTotalPreview();
+    $("quoteHint").innerText = CUSTOMER_SHARE_ENABLED
+      ? "행을 추가하고 저장한 뒤 고객 공유 링크를 만들어요."
+      : "행을 추가해 작성하고 저장하면 대시보드에 반영돼요.";
+    updateEditorActionState();
   }
   function renderPrequoteContext(context){
     var card = $("prequoteContextCard");
@@ -574,11 +628,13 @@
         if (svc === "Y" || svc === "N") DEFAULT_INCLUDE_SERVICE = svc;
         if (opt === "Y" || opt === "N") DEFAULT_INCLUDE_OPTION = opt;
         if (inc === "Y" || inc === "N") DEFAULT_INCLUDE_INCLUDED = inc;
+        CUSTOMER_SHARE_ENABLED = !!cfg.customer_share_enabled;
         if (!currentQuoteId) $("vat_included").checked = (DEFAULT_VAT_INCLUDED === "Y");
         if (!currentQuoteId) $("include_service_in_total").checked = (DEFAULT_INCLUDE_SERVICE === "Y");
         if (!currentQuoteId) $("include_option_in_total").checked = (DEFAULT_INCLUDE_OPTION === "Y");
         if (!currentQuoteId) $("include_included_in_total").checked = (DEFAULT_INCLUDE_INCLUDED === "Y");
         recalcTotalPreview();
+        updateEditorActionState();
       })
       .withFailureHandler(function(){})
       .getPublicAppConfig();
@@ -880,6 +936,7 @@
     var body = $("itemsBody");
     var groups = sortedGroups();
     var rows = itemRows();
+    var emptyState = $("itemsEmptyState");
     var byGroup = Object.create(null);
     for (var i = 0; i < groups.length; i++) byGroup[groups[i].id] = [];
     for (var j = 0; j < rows.length; j++){
@@ -890,6 +947,7 @@
     }
 
     body.innerHTML = "";
+    if (emptyState) emptyState.style.display = rows.length ? "none" : "block";
 
     for (var g = 0; g < groups.length; g++){
       var group = groups[g];
@@ -1817,33 +1875,9 @@
   /* ====== 견적 생성/저장/공유 ====== */
   function createNew(btn){
     setStatus("");
-    callServer(btn, function(runner){ runner.createQuote(pw()); }, function(res){
-      if (!res || !res.quoteId){
-        setStatus("새 견적을 만들지 못했어요.");
-        toast("새 견적을 만들지 못했어요.", "error");
-        return;
-      }
-      currentQuoteId = res.quoteId;
-      loadedPrequoteContext = null;
-      renderPrequoteContext(null);
-
-      $("editor").style.display = "block";
-      groupState = Object.create(null);
-      $("itemsBody").innerHTML = "";
-      ensureGroupState("misc", "기타", "", 9999);
-      refreshGroupSelectOptions("misc");
-      addRow({ group_id: "misc", group_label: "기타", price_type: "NORMAL" });
-
-      $("vat_included").checked = (DEFAULT_VAT_INCLUDED === "Y");
-      $("include_service_in_total").checked = (DEFAULT_INCLUDE_SERVICE === "Y");
-      $("include_option_in_total").checked = (DEFAULT_INCLUDE_OPTION === "Y");
-      $("include_included_in_total").checked = (DEFAULT_INCLUDE_INCLUDED === "Y");
-      recalcTotalPreview();
-
-      $("quoteHint").innerText = "저장한 뒤 ‘고객 공유 링크’를 만들어요.";
-      setStatus("새 견적을 만들었어요.");
-      toast("새 견적을 시작했어요.", "success");
-    });
+    resetEditorForNewQuote();
+    setStatus("새 견적 작성을 시작했어요. 저장하기 전에는 목록에 남지 않아요.");
+    toast("새 견적을 시작했어요.", "success");
   }
 
   function applyLoadedQuote_(payload){
@@ -1881,15 +1915,17 @@
     $("itemsBody").innerHTML = "";
     if (!items.length) {
       ensureGroupState("misc", "기타", "", 9999);
-      addRow({ group_id: "misc", group_label: "기타", price_type: "NORMAL" }, { silent: true });
     } else {
       for (var i = 0; i < items.length; i++) addRow(items[i], { silent: true });
     }
     refreshGroupSelectOptions();
     rebuildGroupedRows();
     $("quoteHint").innerText = prequoteContext.imported_from_prequote
-      ? "가견적에서 가져온 초안입니다. 항목을 검토한 뒤 저장하거나 고객 공유 링크를 만드세요."
+      ? (CUSTOMER_SHARE_ENABLED
+          ? "가견적에서 가져온 초안입니다. 항목을 검토한 뒤 저장하거나 고객 공유 링크를 만드세요."
+          : "가견적에서 가져온 초안입니다. 항목을 검토한 뒤 저장해 운영 목록에 반영하세요.")
       : "불러온 견적을 수정하고 저장할 수 있어요.";
+    updateEditorActionState();
     setStatus("견적 #" + currentQuoteId + " 를 불러왔어요.");
     toast("기존 견적을 불러왔어요.", "success");
   }
@@ -1973,8 +2009,6 @@
   }
 
   function saveQuote(btn){
-    if (!currentQuoteId){ setStatus("먼저 새 견적을 만들어요."); return; }
-
     var payload = {
       quoteId: currentQuoteId,
       quote: {
@@ -1991,13 +2025,20 @@
       items: collectItems()
     };
 
-    callServer(btn, function(runner){ runner.saveQuote(payload, pw()); }, function(){
-      setStatus("저장되었어요.");
+    callServer(btn, function(runner){ runner.saveQuote(payload, pw()); }, function(res){
+      currentQuoteId = String((res && res.quoteId) || currentQuoteId || "").trim();
+      updateEditorActionState();
+      setStatus(res && res.created ? "저장했어요. 이제 견적이 목록에 반영돼요." : "저장되었어요.");
       toast("저장되었어요.", "success");
     });
   }
 
   function makeShare(btn){
+    if (!CUSTOMER_SHARE_ENABLED){
+      setStatus("현재 quote_app은 관리자 전용 배포라 고객 공유 링크를 만들 수 없어요.");
+      toast("고객 공유 링크를 사용할 수 없어요.", "error");
+      return;
+    }
     if (!currentQuoteId){ setStatus("먼저 새 견적을 만들어요."); return; }
 
     callServer(btn, function(runner){ runner.generateShare(currentQuoteId, pw()); }, function(res){
@@ -2048,6 +2089,7 @@
       if (pendingQuoteId && pw()) loadQuoteById_(pendingQuoteId, $("btnCreate"));
       else if (pendingQuoteId) setStatus("견적 초안이 준비되었습니다. 관리자 인증 후 자동으로 불러옵니다.");
     });
+    updateEditorActionState();
     $("adminPw").addEventListener("input", function(){ pw(); tryLoadPendingQuoteAfterAuth_(); });
     $("adminPw").addEventListener("change", tryLoadPendingQuoteAfterAuth_);
     $("adminPw").addEventListener("blur", tryLoadPendingQuoteAfterAuth_);

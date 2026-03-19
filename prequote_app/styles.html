@@ -92,7 +92,8 @@
   .btn-primary:disabled{background:var(--color-warm-300);cursor:not-allowed}
   .btn-secondary{background:var(--color-warm-100);color:var(--color-warm-700);border:1.5px solid var(--color-line)}
   .btn-secondary:hover{background:var(--color-warm-150)}
-  .btn-danger{background:var(--color-danger);color:#fff}
+  .btn-danger{background:#9B7064;color:#fff}
+  .btn-danger:hover{background:#876057}
   .btn-block{width:100%}
   .btn-lg{min-height:56px;font-size:15px;border-radius:var(--r-lg)}
   .btn-sm{min-height:36px;padding:6px 14px;font:var(--f-sm);font-weight:600}
@@ -104,9 +105,11 @@
     background:var(--color-surface);cursor:pointer;
     transition:all var(--motion) var(--ease);
     user-select:none;-webkit-tap-highlight-color:transparent;
+    min-height:52px;
   }
-  .opt-card:hover{border-color:var(--color-warm-300);background:var(--color-warm-50)}
-  .opt-card.selected{border-color:var(--color-primary);background:var(--color-primary-muted);box-shadow:0 0 0 2px var(--color-primary-soft)}
+  .opt-card:hover{border-color:var(--color-warm-300);background:var(--color-warm-50);box-shadow:0 2px 8px rgba(26,24,22,.06)}
+  .opt-card:active{transform:scale(.985);transition-duration:80ms}
+  .opt-card.selected{border-color:var(--color-primary);background:var(--color-primary-muted);box-shadow:0 0 0 2.5px var(--color-primary-soft),0 2px 8px rgba(47,107,94,.08)}
   .opt-card .opt-radio{
     width:22px;height:22px;border-radius:50%;border:2px solid var(--color-warm-300);
     flex-shrink:0;display:flex;align-items:center;justify-content:center;
@@ -211,8 +214,9 @@
   .status-CLOSED{background:var(--color-warm-100);color:var(--color-warm-500)}
 
   /* --- Sticky CTA --- */
-  .sticky-cta{position:fixed;bottom:0;left:0;right:0;background:var(--color-surface);padding:14px var(--sp-20) calc(14px + env(safe-area-inset-bottom));box-shadow:0 -2px 10px rgba(26,24,22,0.08);z-index:90}
+  .sticky-cta{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:12px var(--sp-20) calc(12px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(26,24,22,0.10);z-index:90;border-top:1px solid rgba(122,116,108,.08)}
   .sticky-cta .container{max-width:520px}
+  .sticky-cta .btn{min-height:52px;font-size:15px;border-radius:var(--r-lg)}
 
   /* --- Safe area --- */
   body{padding-bottom:env(safe-area-inset-bottom)}

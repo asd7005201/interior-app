@@ -7,8 +7,8 @@ export interface SiteConfig {
 }
 
 export const siteConfig: SiteConfig = {
-  title: "우아한 인테리어 | 견적 시스템",
-  description: "전문 인테리어 디자인과 견적 서비스를 제공하는 우아한 인테리어입니다. 정확한 견적, 투명한 가격, 완벽한 시공을 약속드립니다.",
+  title: "우아한 인테리어 | 무료 온라인 견적",
+  description: "인테리어 전문가가 직접 설계하고 시공하는 우아한 인테리어. 3분 설문으로 무료 가견적을 받아보세요. 투명한 가격, 검증된 자재, 책임 시공.",
   language: "ko",
 };
 
@@ -41,18 +41,18 @@ export const navigationConfig: NavigationConfig = {
   menuLinks: [
     { label: "홈", href: "#hero" },
     { label: "서비스", href: "#services" },
-    { label: "견적 문의", href: "#quote" },
-    { label: "포트폴리오", href: "#portfolio" },
-    { label: "문의하기", href: "#contact" },
+    { label: "무료 견적", href: "#quote" },
+    { label: "시공 사례", href: "#portfolio" },
+    { label: "상담 신청", href: "#contact" },
   ],
   socialLinks: [
     { icon: "Instagram", label: "Instagram", href: "https://instagram.com" },
     { icon: "Facebook", label: "Facebook", href: "https://facebook.com" },
   ],
-  searchPlaceholder: "검색어를 입력하세요...",
-  cartEmptyText: "견적함이 비어있습니다",
+  searchPlaceholder: "궁금한 내용을 검색하세요",
+  cartEmptyText: "아직 선택한 자재가 없습니다",
   cartCheckoutText: "견적 요청하기",
-  continueShoppingText: "계속 둘러보기",
+  continueShoppingText: "자재 더 둘러보기",
   menuBackgroundImage: "/images/hero-interior.jpg",
 };
 
@@ -69,11 +69,11 @@ export interface HeroConfig {
 }
 
 export const heroConfig: HeroConfig = {
-  tagline: "당신의 공간을 특별하게",
-  title: "우아한 인테리어\n견적 시스템",
-  ctaPrimaryText: "견적 문의하기",
+  tagline: "꿈꾸던 공간, 현실이 되는 순간",
+  title: "당신의 집이\n작품이 됩니다",
+  ctaPrimaryText: "3분 만에 무료 견적 받기",
   ctaPrimaryTarget: "#quote",
-  ctaSecondaryText: "포트폴리오 보기",
+  ctaSecondaryText: "시공 사례 보기",
   ctaSecondaryTarget: "#portfolio",
   backgroundImage: "/images/hero-interior.jpg",
 };
@@ -98,20 +98,20 @@ export interface SubHeroConfig {
 }
 
 export const subHeroConfig: SubHeroConfig = {
-  tag: "About Us",
-  heading: "공간에 영감을 불어넣는\n인테리어 전문가",
+  tag: "우아한 인테리어 소개",
+  heading: "살아보면 느끼는 차이,\n디테일이 다른 시공",
   bodyParagraphs: [
-    "우아한 인테리어는 10년 이상의 경험을 바탕으로, 고객 한 분 한 분의 라이프스타일에 맞춘 맞춤형 인테리어 서비스를 제공합니다.",
-    "정확한 견적 시스템과 투명한 가격 정책으로, 예산 내에서 최고의 품질을 약속드립니다. 디자인부터 시공까지 원스톱 서비스로 편리함을 드립니다.",
+    "우아한 인테리어는 아파트, 빌라, 주택 등 주거 공간 전문으로 10년 넘게 고객의 라이프스타일에 맞춘 맞춤 설계를 해왔습니다.",
+    "현장 실측부터 3D 디자인, 자재 선정, 시공, A/S까지 한 팀이 책임지는 원스톱 서비스. 견적 단계부터 자재 단가를 투명하게 공개해 추가 비용 걱정을 없앴습니다.",
   ],
-  linkText: "더 알아보기",
+  linkText: "서비스 자세히 보기",
   linkTarget: "#services",
   image1: "/images/about-studio.jpg",
   image2: "/images/about-living.jpg",
   stats: [
-    { value: 500, suffix: "+", label: "완료 프로젝트" },
-    { value: 10, suffix: "+", label: "업계 경력(년)" },
-    { value: 98, suffix: "%", label: "고객 만족도" },
+    { value: 520, suffix: "세대", label: "누적 시공 세대" },
+    { value: 12, suffix: "년", label: "인테리어 전문 경력" },
+    { value: 97, suffix: "%", label: "재시공 없는 완성률" },
   ],
 };
 
@@ -127,13 +127,13 @@ export interface VideoSectionConfig {
 }
 
 export const videoSectionConfig: VideoSectionConfig = {
-  tag: "Our Process",
-  heading: "전문적인 시공 과정",
+  tag: "시공 프로세스",
+  heading: "체계적인 5단계 시공",
   bodyParagraphs: [
-    "현장 실측부터 디자인, 자재 선정, 시공까지 체계적인 프로세스로 완벽한 공간을 만듭니다.",
-    "각 단계별 전문가가 책임지고 진행하여 품질을 보장합니다.",
+    "현장 실측 → 3D 디자인 → 자재 확정 → 공정별 시공 → 최종 검수. 각 단계마다 고객 확인을 거쳐 만족스러운 결과를 만듭니다.",
+    "담당 실장이 처음부터 끝까지 현장을 관리하여, 일정 지연과 품질 편차를 최소화합니다.",
   ],
-  ctaText: "더 알아보기",
+  ctaText: "서비스 살펴보기",
   ctaTarget: "#services",
   backgroundImage: "/images/service-kitchen.jpg",
 };
@@ -155,26 +155,26 @@ export interface ServicesConfig {
 }
 
 export const servicesConfig: ServicesConfig = {
-  tag: "Our Services",
-  heading: "전문 인테리어 서비스",
-  description: "주거 공간부터 상업 공간까지, 전문적인 디자인과 시공으로 완벽한 공간을 만들어드립니다.",
+  tag: "서비스 안내",
+  heading: "공간별 맞춤 인테리어",
+  description: "주방, 욕실, 침실 등 공간의 특성에 맞는 전문 설계와 시공으로 생활의 편리함과 아름다움을 동시에 드립니다.",
   services: [
     {
       id: 1,
-      title: "주방 인테리어",
-      description: "기능성과 미관을 동시에 잡은 맞춤형 주방 디자인. 수납 공간 최적화와 고급 자재로 특별한 주방을 선사합니다.",
+      title: "주방 리모델링",
+      description: "동선을 고려한 수납 설계와 내구성 높은 상판, 고급 수전으로 요리가 즐거워지는 주방을 만듭니다.",
       image: "/images/service-kitchen.jpg",
     },
     {
       id: 2,
-      title: "욕실 인테리어",
-      description: "스파 같은 편안함을 집 안에. 고급 욕조와 타일, 수전으로 특별한 힐링 공간을 디자인합니다.",
+      title: "욕실 리모델링",
+      description: "방수 시공부터 타일, 수전, 욕조까지. 매일 사용하는 공간이니까 내구성과 디자인 모두 놓치지 않습니다.",
       image: "/images/service-bath.jpg",
     },
     {
       id: 3,
-      title: "침실 인테리어",
-      description: "편안한 수면을 위한 최적의 공간 설계. 조명, 컬러, 가구 배치로 완벽한 휴식 공간을 만듭니다.",
+      title: "침실 & 거실",
+      description: "조명 설계, 컬러 톤 조합, 맞춤 붙박이장으로 하루의 피로를 풀 수 있는 편안한 공간을 완성합니다.",
       image: "/images/service-bedroom.jpg",
     },
   ],
@@ -192,15 +192,15 @@ export interface QuoteConfig {
 }
 
 export const quoteConfig: QuoteConfig = {
-  tag: "Get a Quote",
-  heading: "정확한 견적,\n투명한 가격",
-  description: "간단한 정보 입력으로 정확한 견적을 받아보세요. 담당자가 확인 후 상세 견적서를 볂내드립니다.",
-  ctaText: "견적 요청하기",
+  tag: "무료 가견적",
+  heading: "3분이면 충분합니다.\n무료로 견적을 받아보세요.",
+  description: "간단한 설문만 작성하시면, 담당 실장이 검토 후 24시간 내 맞춤 견적서를 보내드립니다. 비용은 일절 들지 않습니다.",
+  ctaText: "무료 견적 설문 시작하기",
   features: [
-    "실시간 견적 계산",
-    "투명한 자재 단가",
-    "상세 공정별 견적",
-    "온라인 견적서 확인",
+    "100% 무료, 부담 없는 가견적",
+    "자재 단가까지 투명하게 공개",
+    "공정별 상세 항목 안내",
+    "설문 완료 후 24시간 내 회신",
   ],
   backgroundImage: "/images/materials-samples.jpg",
 };
@@ -225,10 +225,10 @@ export interface PortfolioConfig {
 }
 
 export const portfolioConfig: PortfolioConfig = {
-  tag: "Portfolio",
-  heading: "완성된 프로젝트",
-  description: "우아한 인테리어가 완성한 다양한 공간들을 만나보세요.",
-  viewAllText: "전체 보기",
+  tag: "시공 사례",
+  heading: "직접 확인하는 완성 품질",
+  description: "평수별, 예산별 실제 시공 사례를 확인하고 나에게 맞는 스타일을 찾아보세요.",
+  viewAllText: "전체 사례 보기",
   items: [
     {
       id: 1,
@@ -281,23 +281,23 @@ export const featuresConfig: FeaturesConfig = {
   features: [
     {
       icon: "ShieldCheck",
-      title: "품질 보증",
-      description: "모든 공정은 품질 보증 기간이 제공되며, A/S까지 책임집니다.",
+      title: "1년 무상 A/S",
+      description: "시공 완료 후 1년간 무상 보수. 하자 발생 시 48시간 내 방문 조치합니다.",
     },
     {
       icon: "Clock",
-      title: "정확한 일정",
-      description: "약속한 일정에 맞춰 정확하게 시공을 완료합니다.",
+      title: "약속한 날짜에 완공",
+      description: "공정표에 따라 일정을 관리하며, 지연 시 사전 안내드립니다.",
     },
     {
       icon: "Wallet",
-      title: "투명한 가격",
-      description: "숨겨진 비용 없이 투명한 견적으로 예산을 관리하세요.",
+      title: "추가 비용 제로",
+      description: "계약 시 확정된 견적 그대로. 숨은 비용 없이 자재 단가까지 공개합니다.",
     },
     {
       icon: "Heart",
-      title: "맞춤 디자인",
-      description: "고객의 라이프스타일에 맞는 맞춤형 디자인을 제공합니다.",
+      title: "생활 맞춤 설계",
+      description: "가족 구성, 생활 패턴, 취향을 반영한 실용적이고 아름다운 공간을 설계합니다.",
     },
   ],
 };
@@ -319,35 +319,35 @@ export interface FaqConfig {
 }
 
 export const faqConfig: FaqConfig = {
-  tag: "FAQ",
-  heading: "자주 묻는 질문",
-  ctaText: "더 궁금한 점이 있으신가요?",
+  tag: "자주 묻는 질문",
+  heading: "궁금한 점, 미리 답해드립니다",
+  ctaText: "더 궁금하신 점이 있으신가요? 편하게 문의해주세요.",
   ctaTarget: "#contact",
   faqs: [
     {
       id: 1,
-      question: "견적은 어떻게 받아볼 수 있나요?",
-      answer: "홈페이지의 견적 문의 양식을 작성해주시면, 담당자가 연락드려 현장 방문 후 정확한 견적을 산출해드립니다. 온라인으로도 대략적인 견적 확인이 가능합니다.",
+      question: "온라인 견적은 어떻게 받나요?",
+      answer: "홈페이지의 무료 견적 설문(약 3분)을 작성해주시면, 담당 실장이 내용을 검토한 뒤 24시간 내에 가견적서를 보내드립니다. 이후 현장 실측을 통해 최종 견적을 확정하며, 가견적 단계에서는 비용이 전혀 발생하지 않습니다.",
     },
     {
       id: 2,
       question: "시공 기간은 얼마나 걸리나요?",
-      answer: "평수와 공정에 따라 다르지만, 일반적으로 20평대 아파트 기준 4~6주 정도 소요됩니다. 정확한 일정은 견적 상담 시 안내드립니다.",
+      answer: "20평대 아파트 전체 시공 기준 보통 4~6주가 소요됩니다. 부분 시공(욕실, 주방 등)은 1~2주 내로 완료됩니다. 계약 시 공정표를 함께 드리며, 일정이 변경될 경우 사전에 안내드립니다.",
     },
     {
       id: 3,
-      question: "자재는 직접 선택할 수 있나요?",
-      answer: "네, 가능합니다. 담당 디자이너와 상담을 통해 다양한 자재 옵션 중에서 선택하실 수 있으며, 자재에 따라 견적이 조정될 수 있습니다.",
+      question: "자재는 직접 고를 수 있나요?",
+      answer: "물론입니다. 바닥재, 타일, 수전, 도배지 등 주요 자재를 담당 디자이너와 함께 선택하실 수 있습니다. 자재 샘플을 직접 확인하신 후 결정하시면 되고, 선택에 따라 견적이 투명하게 조정됩니다.",
     },
     {
       id: 4,
-      question: "A/S는 어떻게 이루어지나요?",
-      answer: "시공 완료 후 1년간 무상 A/S를 제공하며, 이후에도 유상으로 A/S가 가능합니다. 하자 발생 시 신속하게 처리해드립니다.",
+      question: "A/S는 어떻게 되나요?",
+      answer: "시공 완료 후 1년간 무상 A/S를 보장합니다. 하자 발생 시 접수 후 48시간 내 방문하여 조치하며, 무상 기간 이후에도 합리적인 비용으로 유상 A/S를 제공합니다. 시공한 팀이 직접 A/S를 담당하므로 빠르고 정확합니다.",
     },
     {
       id: 5,
-      question: "계약금과 대금 지급은 어떻게 하나요?",
-      answer: "계약 시 30%의 계약금을 입금해주시며, 공정 진행 상황에 따라 중도금과 잔금을 나누어 지급합니다. 자세한 내용은 견적 상담 시 안내드립니다.",
+      question: "대금 지급은 어떤 방식인가요?",
+      answer: "계약금 30%, 중도금 40%, 잔금 30%로 나누어 공정 진행에 맞춰 지급합니다. 각 단계별 시공 결과를 확인하신 후 지급하시는 구조라 안심하실 수 있습니다. 카드 결제도 가능하며, 자세한 내용은 상담 시 안내드립니다.",
     },
   ],
 };
@@ -381,8 +381,8 @@ export interface ContactConfig {
 }
 
 export const contactConfig: ContactConfig = {
-  heading: "문의하기",
-  description: "인테리어 관련 문의사항이 있으시면 언제든 연락주세요. 빠른 시일 내에 답변드리겠습니다.",
+  heading: "편하게 연락주세요",
+  description: "인테리어가 처음이셔도 괜찮습니다. 작은 궁금증이라도 부담 없이 남겨주시면, 경험 많은 실장이 친절하게 답변드리겠습니다.",
   locationLabel: "주소",
   location: "서울특별시 강남구 테헤란로 123 우아한빌딩 5F",
   emailLabel: "이메일",
@@ -391,16 +391,16 @@ export const contactConfig: ContactConfig = {
   phone: "02-1234-5678",
   formFields: {
     nameLabel: "이름",
-    namePlaceholder: "이름을 입력하세요",
+    namePlaceholder: "홍길동",
     emailLabel: "이메일",
-    emailPlaceholder: "이메일을 입력하세요",
-    messageLabel: "문의내용",
-    messagePlaceholder: "문의하실 내용을 입력하세요",
+    emailPlaceholder: "example@email.com",
+    messageLabel: "문의 내용",
+    messagePlaceholder: "평수, 예산, 원하시는 스타일 등을 자유롭게 적어주세요",
   },
-  submitText: "보내기",
-  submittingText: "볂내는 중...",
-  submittedText: "보내기 완료",
-  successMessage: "문의가 성공적으로 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.",
+  submitText: "문의 보내기",
+  submittingText: "보내는 중...",
+  submittedText: "접수 완료",
+  successMessage: "문의가 접수되었습니다. 영업일 기준 24시간 내에 답변드리겠습니다. 감사합니다.",
   backgroundImage: "/images/hero-interior.jpg",
 };
 
@@ -438,12 +438,12 @@ export interface FooterConfig {
 
 export const footerConfig: FooterConfig = {
   brandName: "우아한 인테리어",
-  brandDescription: "당신의 공간을 특별하게 만드는 인테리어 전문가. 정확한 견적, 투명한 가격, 완벽한 시공을 약속드립니다.",
-  newsletterHeading: "뉴스레터 구독",
-  newsletterDescription: "최신 프로젝트와 인테리어 트렌드를 받아보세요.",
+  brandDescription: "살아보면 느끼는 차이. 투명한 견적, 검증된 자재, 책임 시공으로 고객의 일상을 더 아름답게 만듭니다.",
+  newsletterHeading: "인테리어 소식 받기",
+  newsletterDescription: "시공 사례와 인테리어 팁을 이메일로 받아보세요.",
   newsletterPlaceholder: "이메일 주소를 입력하세요",
   newsletterButtonText: "구독하기",
-  newsletterSuccessText: "구독이 완료되었습니다!",
+  newsletterSuccessText: "구독이 완료되었습니다. 감사합니다!",
   linkGroups: [
     {
       title: "서비스",
@@ -451,7 +451,7 @@ export const footerConfig: FooterConfig = {
         { label: "주방 인테리어", href: "#services" },
         { label: "욕실 인테리어", href: "#services" },
         { label: "침실 인테리어", href: "#services" },
-        { label: "견적 문의", href: "#quote" },
+        { label: "무료 견적", href: "#quote" },
       ],
     },
     {
@@ -496,10 +496,10 @@ export interface ProductsConfig {
 }
 
 export const productsConfig: ProductsConfig = {
-  tag: "Materials",
-  heading: "인기 자재",
-  description: "우아한 인테리어에서 자주 사용하는 고품질 자재들을 소개합니다.",
-  viewAllText: "전체 보기",
+  tag: "추천 자재",
+  heading: "검증된 인기 자재",
+  description: "실제 시공에서 자주 사용되는 고품질 자재를 소개합니다. 자재 선택에 참고하세요.",
+  viewAllText: "전체 자재 보기",
   addToCartText: "견적에 추가",
   addedToCartText: "추가되었습니다",
   categories: ["전체", "바닥재", "벽재", "주방", "욕실"],
@@ -547,31 +547,31 @@ export interface BlogConfig {
 }
 
 export const blogConfig: BlogConfig = {
-  tag: "Journal",
-  heading: "인테리어 이야기",
-  viewAllText: "전체 보기",
-  readMoreText: "자세히 보기",
+  tag: "인테리어 가이드",
+  heading: "알면 도움 되는 인테리어 팁",
+  viewAllText: "전체 글 보기",
+  readMoreText: "자세히 읽기",
   posts: [
     {
       id: 1,
-      title: "2024년 인테리어 트렌드: 따뜻한 미니멀리즘",
-      date: "2024.03.01",
+      title: "2026 인테리어 트렌드: 자연 소재와 따뜻한 미니멀리즘",
+      date: "2026.01.15",
       image: "/images/hero-interior.jpg",
-      excerpt: "올해의 인테리어 트렌드를 알아보고, 집 안에 자연스럽게 녹아드는 디자인을 만나보세요.",
+      excerpt: "올해 주목할 인테리어 트렌드를 정리했습니다. 우드톤, 자연광 활용, 곡선 가구 등 편안한 공간 만들기의 핵심을 알려드립니다.",
     },
     {
       id: 2,
-      title: "작은 공간을 넓게 만드는 5가지 팁",
-      date: "2024.02.15",
+      title: "20평대 아파트, 넓어 보이게 만드는 7가지 시공 팁",
+      date: "2025.11.20",
       image: "/images/about-living.jpg",
-      excerpt: "원룸이나 소형 아파트도 넓고 쾌적하게! 공간 활용의 비결을 공개합니다.",
+      excerpt: "작은 평수도 설계만 잘하면 넓고 쾌적하게 살 수 있습니다. 전문가가 알려주는 공간 활용 노하우를 확인하세요.",
     },
     {
       id: 3,
-      title: "주방 리모델링 가이드",
-      date: "2024.01.20",
+      title: "주방 리모델링 전 반드시 알아야 할 5가지 체크리스트",
+      date: "2025.09.05",
       image: "/images/service-kitchen.jpg",
-      excerpt: "기능성과 디자인을 동시에 잡는 주방 리모델링의 모든 것.",
+      excerpt: "상판 소재 선택부터 수납 동선 설계까지, 후회 없는 주방 리모델링을 위한 핵심 포인트를 정리했습니다.",
     },
   ],
 };
@@ -596,11 +596,11 @@ export interface AboutConfig {
 export const aboutConfig: AboutConfig = {
   sections: [
     {
-      tag: "Our Philosophy",
+      tag: "우리의 철학",
       heading: "공간에 가치를 더하다",
       paragraphs: [
-        "우아한 인테리어는 단순히 예쁜 공간을 만드는 것을 넘어, 그곳에 사는 사람들의 삶의 질을 높이는 것을 목표로 합니다.",
-        "모든 프로젝트는 고객의 꿈과 우리의 전문성이 만나 완성되는 특별한 여정입니다.",
+        "우아한 인테리어는 단순히 예쁜 공간이 아니라, 그 안에서 살아가는 사람들의 일상이 더 편안해지는 것을 목표로 합니다.",
+        "고객 한 분 한 분의 이야기를 듣고, 그 꿈을 현실로 만드는 것이 저희가 하는 일입니다.",
       ],
       quote: "좋은 공간은 좋은 삶의 시작입니다.",
       attribution: "— 우아한 인테리어",

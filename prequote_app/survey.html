@@ -29,8 +29,8 @@
     .step-wrap{padding-top:28px;max-width:520px;margin:0 auto}
     .opts-grid{display:grid;gap:10px}
     .q-block{margin-bottom:24px;animation:fadeIn 250ms var(--ease)}
-    .q-title{font:var(--f-h3);margin-bottom:4px}
-    .q-desc{font:var(--f-sm);color:var(--color-text-sub);margin-bottom:12px;line-height:1.55}
+    .q-title{font:var(--f-h3);margin-bottom:6px;padding-left:2px}
+    .q-desc{font:var(--f-sm);color:var(--color-text-sub);margin-bottom:14px;line-height:1.55;padding-left:2px}
     .q-separator{height:1px;background:var(--color-line);margin:20px 0 24px}
     .file-zone{border:2px dashed var(--color-warm-300);border-radius:var(--r-lg);padding:28px 20px;text-align:center;cursor:pointer;transition:all var(--motion) var(--ease)}
     .file-zone:hover{border-color:var(--color-primary);background:var(--color-primary-muted)}
@@ -199,25 +199,34 @@
     if(STATE.step>=STEPS.length) STATE.step=STEPS.length-1;
     if(STATE.step<0) STATE.step=0;
     var sd=STEPS[STATE.step],total=STEPS.length,pct=Math.round(((STATE.step+1)/total)*100);
+    var qs=sd.questions||[];
+    var branchIntro=qs.length&&qs.every(function(q){
+      var code=String(q.question_code||'').trim();
+      return code==='Q000_PROJECT_TYPE'||code==='Q000_FLOW_MODE';
+    });
     var h='<div class="progress-bar"><div class="fill" style="width:'+pct+'%"></div></div>';
     h+='<button class="back-btn" onclick="PQ.prev()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>';
     h+='<div class="container step-wrap"><div class="step-header"><div class="step-counter">'+(STATE.step+1)+' / '+total+'</div>';
     h+='<div class="step-title">'+esc(sd.title)+'</div>';
     if(sd.desc) h+='<div class="step-desc">'+esc(sd.desc)+'</div>';
     h+='</div>';
-    var qs=sd.questions||[];
     for(var i=0;i<qs.length;i++){
       if(i>0&&qs.length>1) h+='<div class="q-separator"></div>';
       h+=rQ(qs[i],qs.length>1);
     }
     h+='</div>';
     var isLast=STATE.step>=total-1, ok=chkReq(qs), allOpt=qs.every(function(q){return String(q.is_required)!=='Y';});
+    var ctaLabel=isLast?(branchIntro?'선택 후 계속':'결과 확인하기'):'다음';
     h+='<div class="sticky-cta"><div class="container" style="max-width:520px">';
-    if(isLast) h+='<button class="btn btn-primary btn-lg btn-block'+(ok?'':' disabled')+'" onclick="PQ.submit()"'+(ok?'':' disabled')+'>결과 확인하기</button>';
-    else h+='<button class="btn btn-primary btn-lg btn-block'+(ok?'':' disabled')+'" onclick="PQ.next()"'+(ok?'':' disabled')+'>다음</button>';
+    if(isLast) h+='<button class="btn btn-primary btn-lg btn-block'+(ok?'':' disabled')+'" onclick="PQ.submit()"'+(ok?'':' disabled')+'>'+ctaLabel+'</button>';
+    else h+='<button class="btn btn-primary btn-lg btn-block'+(ok?'':' disabled')+'" onclick="PQ.next()"'+(ok?'':' disabled')+'>'+ctaLabel+'</button>';
     if(!isLast&&allOpt) h+='<div class="skip-link" onclick="PQ.next()">건너뛰기</div>';
     h+='</div></div>';
     $app.innerHTML=h;
+    if(branchIntro){
+      var counter=$app.querySelector('.step-counter');
+      if(counter) counter.innerText='시작';
+    }
   }
 
   function rQ(q,multi){
@@ -290,12 +299,14 @@
 
   function bResi(s,q,det){
     pQ(s,q,'R001_HOUSING_TYPE');pQ(s,q,'R002_AREA');
+    pQ(s,q,'R003_FLOOR_INFO');
     pG(s,q,['R003_CONDITION','R004_OCCUPANCY'],'현재 상태','집 상태와 거주 상태를 알려주세요.');
     if(det) pQ(s,q,'R005_REASON');
     pQ(s,q,'R010_SPACES');
     pQ(s,q,'R011_SCOPE_LEVEL');
     pQ(s,q,'R012_TRADES');
     if(det) pQ(s,q,'R013_STRUCTURE');
+    pQ(s,q,'R014_BALCONY');
     pQ(s,q,'R100_DEMO_SCOPE');
     pG(s,q,['R110_BATH_SCOPE','R111_BATH_LEVEL'],'욕실 공사','욕실 공사 범위를 선택해주세요.');
     pQ(s,q,'R112_BATH_GRADE');
@@ -304,12 +315,13 @@
     pG(s,q,['R130_FLOOR_SCOPE','R131_FLOOR_MATERIAL'],'바닥 공사','바닥 범위와 선호 소재를 선택해주세요.');
     pQ(s,q,'R132_FLOOR_GRADE');
     pQ(s,q,'R140_WINDOW_SCOPE');pQ(s,q,'R150_LIGHT_SCOPE');pQ(s,q,'R151_LIGHT_TYPE');pQ(s,q,'R160_BUILTIN_SCOPE');
-    pG(s,q,['R200_STYLE','R201_TONE'],'분위기와 톤','원하시는 느낌을 선택해주세요.');
+    pG(s,q,['R200_STYLE','R201_TONE'],'분위기와 톤','원하시는 분위기와 톤을 선택해 주세요.');
     pG(s,q,['R210_FAMILY','R211_PET'],'생활 정보','가족 구성과 반려동물을 알려주세요.');
     pQ(s,q,'R300_AGE');
     if(det) pQ(s,q,'R301_RISKS');
     pQ(s,q,'R302_MEP');
     pQ(s,q,'R310_BUDGET');
+    pQ(s,q,'R004_MOVE_IN_DATE');
     pG(s,q,['R320_START','R321_END','R322_VISIT'],'일정','희망 시작/완료 시점을 알려주세요.');
   }
 
@@ -477,7 +489,20 @@
   };
 
   function updCta(){var sd=STEPS[STATE.step];if(!sd)return;var ok=chkReq(sd.questions);document.querySelectorAll('.sticky-cta .btn').forEach(function(b){if(ok){b.removeAttribute('disabled');b.classList.remove('disabled');}else{b.setAttribute('disabled','');b.classList.add('disabled');}});}
-  function applyBundle(bc){if(!CFG||!CFG.bundles)return;var b=CFG.bundles.find(function(x){return x.bundle_id===bc;});if(!b)return;var d=b.default_answers_json||{};for(var k in d){if(d.hasOwnProperty(k))STATE.answers[k]=d[k];}}
+  function deriveBundleAnswers_(bundle){
+    var out={},filters=(bundle&&bundle.recommended_template_filters_json)||{},area=String(filters.area_band||'').trim();
+    if(!area) return out;
+    if(String(STATE.answers.Q000_PROJECT_TYPE||'').toUpperCase()==='COMMERCIAL') out.C002_AREA=area;
+    else out.R002_AREA=area;
+    return out;
+  }
+  function applyBundle(bc){
+    if(!CFG||!CFG.bundles)return;
+    var b=CFG.bundles.find(function(x){return x.bundle_id===bc;});
+    if(!b)return;
+    var d=Object.assign({},b.default_answers_json||{},deriveBundleAnswers_(b));
+    for(var k in d){if(d.hasOwnProperty(k))STATE.answers[k]=d[k];}
+  }
   function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function showLoading(m){
     if(CFG) return;

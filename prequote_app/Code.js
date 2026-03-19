@@ -7119,6 +7119,7 @@ function adminRunMigration(credential, migrationId) {
   var id = String(migrationId || "").trim();
   if (id === "survey_question_copy_v1") return migrateSurveyQuestionCopy();
   if (id === "survey_questions_v2") return migrateAddSurveyQuestionsV2();
+  if (id === "fix_demo_scope_options_v1") return migrateFixDemoScopeOptions();
   throw new Error("Unknown migration: " + id);
 }
 
@@ -7429,6 +7430,80 @@ function migrateAddSurveyQuestionsV2() {
   } catch (e) {}
 
   return { patched: patchedCodes, added_questions: addedQuestions, added_options: addedOptions };
+}
+
+// ─────────────────────────────────────────────────────────────
+// R100_DEMO_SCOPE 옵션 수정 (예/아니오 → 철거 범위 선택지)
+// ─────────────────────────────────────────────────────────────
+
+function migrateFixDemoScopeOptions() {
+  ensureSpreadsheetId_();
+  var ss = SpreadsheetApp.openById(getSpreadsheetId_());
+  var oSheet = ss.getSheetByName("SurveyOptions");
+  if (!oSheet) return { error: "SurveyOptions 시트 없음" };
+
+  var oData = oSheet.getDataRange().getValues();
+  var oHeaders = oData[0];
+  var qidIdx = oHeaders.indexOf("question_id");
+  var codeIdx = oHeaders.indexOf("option_code");
+  var labelIdx = oHeaders.indexOf("option_label");
+  var descIdx = oHeaders.indexOf("option_description");
+  var sortIdx = oHeaders.indexOf("sort_order");
+  var activeIdx = oHeaders.indexOf("is_active");
+
+  // R100_DEMO_SCOPE의 question_id 찾기
+  var qSheet = ss.getSheetByName("SurveyQuestions");
+  var qData = qSheet.getDataRange().getValues();
+  var qHeaders = qData[0];
+  var qCodeIdx = qHeaders.indexOf("question_code");
+  var qIdIdx = qHeaders.indexOf("question_id");
+  var targetQid = "";
+  for (var i = 1; i < qData.length; i++) {
+    if (String(qData[i][qCodeIdx] || "").trim() === "R100_DEMO_SCOPE") {
+      targetQid = String(qData[i][qIdIdx] || "").trim();
+      break;
+    }
+  }
+  if (!targetQid) return { error: "R100_DEMO_SCOPE 질문을 찾을 수 없음" };
+
+  // 기존 R100_DEMO_SCOPE 옵션 비활성화
+  var deactivated = [];
+  for (var j = 1; j < oData.length; j++) {
+    if (String(oData[j][qidIdx] || "").trim() === targetQid) {
+      if (activeIdx >= 0) oSheet.getRange(j + 1, activeIdx + 1).setValue("N");
+      deactivated.push(String(oData[j][codeIdx] || ""));
+      Utilities.sleep(300);
+    }
+  }
+
+  // 새 옵션 추가
+  var newOpts = [
+    { code: "FULL", label: "전체 철거", desc: "바닥·벽·천장 마감재를 모두 뜯어냅니다", sort: 10 },
+    { code: "PARTIAL_WET", label: "부분 철거 (욕실·주방 위주)", desc: "습식 공간 위주로 뜯어내고, 나머지는 유지합니다", sort: 20 },
+    { code: "PARTIAL_MIN", label: "최소 철거 (도배·장판만)", desc: "도배와 장판만 제거하고 덧시공합니다", sort: 30 },
+    { code: "NONE", label: "철거 없이 덧시공", desc: "기존 마감 위에 새 자재를 덧붙입니다", sort: 40 },
+    { code: "UNDECIDED", label: "잘 모르겠어요 (현장 확인 후 결정)", desc: "실장님이 현장을 보고 안내해 드립니다", sort: 50 }
+  ];
+
+  var added = [];
+  newOpts.forEach(function(opt) {
+    var row = [];
+    oHeaders.forEach(function(h) {
+      var hh = String(h || "").trim();
+      if (hh === "question_id") row.push(targetQid);
+      else if (hh === "option_code") row.push(opt.code);
+      else if (hh === "option_label") row.push(opt.label);
+      else if (hh === "option_description") row.push(opt.desc);
+      else if (hh === "sort_order") row.push(opt.sort);
+      else if (hh === "is_active") row.push("Y");
+      else row.push("");
+    });
+    oSheet.appendRow(row);
+    added.push(opt.code);
+    Utilities.sleep(300);
+  });
+
+  return { question_id: targetQid, deactivated: deactivated, added: added };
 }
 
 function runScheduledSync_() {

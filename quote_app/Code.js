@@ -50,6 +50,7 @@ var STRICT_ADMIN_GET_AUTH_ = false;
 var BUILD_TAG_ = "2026-03-03T09:25:00Z";
 
 var DEFAULT_PUBLIC_EXEC_BASE_URL_ = "";
+var CUSTOMER_SHARE_ENABLED_ = false;
 var ITEMS_CANONICAL_HEADERS_ = [
   "quote_id", "item_id", "seq",
   "group_id", "group_label", "group_code", "group_order", "item_order",
@@ -1774,6 +1775,7 @@ function getPublicAppConfig() {
         default_include_option_in_total: String(s.default_include_option_in_total || "N"),
         default_include_included_in_total: String(s.default_include_included_in_total || "N"),
         base_url: getConfiguredBaseUrl_(s),
+        customer_share_enabled: !!CUSTOMER_SHARE_ENABLED_,
         versions: {
           material_search: String(getMaterialSearchVersion_()),
           template_list: String(getTemplateListVersion_()),
@@ -1830,6 +1832,52 @@ function initBaseMigrations_ADMIN() {
     base_url: baseUrlFix.base_url,
     base_url_added: baseUrlFix.added,
     base_url_updated: baseUrlFix.updated
+  };
+}
+
+function applyReleaseSettings_ADMIN(entries, credential) {
+  if (credential) assertAdminCredential_(credential);
+  else assertEditorAdminExecution_();
+
+  forceEnsureCoreSchema_();
+
+  var ss = getSpreadsheet_();
+  ensureSheetColumnsInSs_(ss, "Settings", ["key", "value"]);
+  var sh = getSheetFromSs_(ss, "Settings");
+  var lastRow = sh.getLastRow();
+  var values = lastRow >= 2 ? sh.getRange(2, 1, lastRow - 1, 2).getValues() : [];
+  var indexByKey = Object.create(null);
+  for (var i = 0; i < values.length; i++) {
+    var key = String(values[i][0] || "").trim();
+    if (!key || indexByKey[key]) continue;
+    indexByKey[key] = i + 2;
+  }
+
+  var list = Array.isArray(entries) ? entries : [];
+  var touched = [];
+  for (var j = 0; j < list.length; j++) {
+    var item = list[j] || {};
+    var itemKey = String(item.key || "").trim();
+    if (!itemKey) continue;
+    var itemValue = String(item.value || "").trim();
+    var rowNo = Number(indexByKey[itemKey] || 0);
+    if (!rowNo) {
+      rowNo = sh.getLastRow() + 1;
+      ensureRowCapacity_(sh, rowNo);
+      sh.getRange(rowNo, 1, 1, 2).setValues([[itemKey, itemValue]]);
+      indexByKey[itemKey] = rowNo;
+      touched.push({ key: itemKey, value: itemValue, action: "added" });
+      continue;
+    }
+    sh.getRange(rowNo, 2, 1, 1).setValue(itemValue);
+    touched.push({ key: itemKey, value: itemValue, action: "updated" });
+  }
+
+  invalidateSettingsCache_(ss.getId());
+  return {
+    ok: true,
+    spreadsheet_id: String(ss.getId() || "").trim(),
+    touched: touched
   };
 }
 
@@ -2031,7 +2079,12 @@ function saveQuote(payload, adminPassword) {
   ensureCoreSchemaReady_();
 
   var quoteId = String(payload && payload.quoteId || "").trim();
-  if (!quoteId) throw new Error("quoteId required");
+  var createdNewQuote = false;
+  if (!quoteId) {
+    quoteId = String(createQuote(adminPassword).quoteId || "").trim();
+    if (!quoteId) throw new Error("quoteId required");
+    createdNewQuote = true;
+  }
 
   var itemsRaw = (payload && payload.items) || [];
   var items = normalizeItems_(itemsRaw);
@@ -2086,7 +2139,7 @@ function saveQuote(payload, adminPassword) {
   markImageRefsCached_(imageIds, 3600);
   bumpQuoteListVersion_();
 
-  return { ok: true };
+  return { ok: true, quoteId: quoteId, created: createdNewQuote };
 }
 
 function getQuoteAdminDetail(quoteId, adminPassword) {
@@ -3579,6 +3632,10 @@ function generateShare(quoteId, adminPassword) {
   assertAdminCredential_(adminPassword);
   ensureCoreSchemaReady_();
 
+  if (!CUSTOMER_SHARE_ENABLED_) {
+    throw new Error("현재 quote_app은 관리자 전용 배포라 고객 공유 링크를 만들 수 없어요.");
+  }
+
   var qid = String(quoteId || "").trim();
   if (!qid) throw new Error("quoteId required");
 
@@ -4100,6 +4157,7 @@ function listQuotesCore_() {
       for (var i = 0; i < values.length; i++) {
         var obj = rowToObj_(headers, values[i], i + 2);
         if (!obj.quote_id) continue;
+        if (shouldHideDashboardQuote_(obj)) continue;
         list.push(buildQuoteSummary_(obj, baseUrl));
       }
 
@@ -4123,7 +4181,9 @@ function listQuotesCore_() {
 
 function buildQuoteSummary_(obj, baseUrl) {
   var token = String(obj.share_token || "").trim();
-  var urls = token ? buildShareUrlsWithBase_(baseUrl, String(obj.quote_id || ""), token) : { viewUrl: "", printUrl: "" };
+  var urls = (CUSTOMER_SHARE_ENABLED_ && token)
+    ? buildShareUrlsWithBase_(baseUrl, String(obj.quote_id || ""), token)
+    : { viewUrl: "", printUrl: "" };
 
   var lastNoteAt = String(obj.last_customer_note_at || "").trim();
   var seenAt = String(obj.owner_last_seen_note_at || "").trim();
@@ -4176,6 +4236,20 @@ function buildQuoteSummary_(obj, baseUrl) {
     print_url: urls.printUrl,
     _search_norm: searchNorm
   };
+}
+
+function shouldHideDashboardQuote_(obj) {
+  var row = obj || {};
+  var status = String(row.status || "draft").trim().toLowerCase();
+  if (status && status !== "draft") return false;
+  if (String(row.share_token || "").trim()) return false;
+  if (Number(row.total || 0) > 0) return false;
+  if (String(row.customer_name || "").trim()) return false;
+  if (String(row.site_name || "").trim()) return false;
+  if (String(row.contact_name || "").trim()) return false;
+  if (String(row.contact_phone || "").trim()) return false;
+  if (String(row.memo || "").trim()) return false;
+  return true;
 }
 
 function matchesDashboardQuery_(row, queryNorm) {
@@ -7010,12 +7084,36 @@ function getTemplatePackageDetailForPrequote(templateId, options) {
   return getTemplatePackageDetailForPrequoteFromSs_(getSpreadsheet_(), templateId, options || {});
 }
 
+var SEARCH_SYNONYMS_ = {
+  "회벽": "회반죽 석회 플라스터 벽면 미장",
+  "석회": "회벽 회반죽 플라스터 미장",
+  "플라스터": "회벽 석회 회반죽 미장",
+  "줄눈": "타일 시멘트 그라우트",
+  "수전": "수도 꼭지 페셋 포셋",
+  "페셋": "수전 꼭지",
+  "걸레받이": "몰딩 바닥 마감",
+  "몰딩": "걸레받이 크라운 장식"
+};
+
 function normText_(s) {
   return String(s || "")
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function expandSynonyms_(query) {
+  var norm = normText_(query);
+  var parts = norm.split(" ").filter(function(v) { return !!v; });
+  var expanded = parts.slice();
+  for (var i = 0; i < parts.length; i++) {
+    var syn = SEARCH_SYNONYMS_[parts[i]];
+    if (syn) {
+      syn.split(" ").forEach(function(w) { if (w && expanded.indexOf(w) < 0) expanded.push(w); });
+    }
+  }
+  return expanded.join(" ");
 }
 
 function tokenize_(text) {
@@ -7528,7 +7626,8 @@ function searchMaterials(query, adminPassword, limit) {
     ? Math.max(Math.floor(Number(opts.offset || 0)), 0)
     : Math.max((page - 1) * max, 0);
 
-  var tokens = pickSearchTokens_(tokenize_(q), 8);
+  var expandedQ = expandSynonyms_(q);
+  var tokens = pickSearchTokens_(tokenize_(expandedQ), 8);
   if (!tokens.length) return [];
 
   var qCacheKey = materialSearchQueryCacheKey_(q, max, offset);
@@ -10788,6 +10887,8 @@ function getDashboardStats(adminPassword, options) {
 
   for (var i = 0; i < values.length; i++) {
     var row = values[i];
+    var obj = rowToObj_(headers, row, i + 2);
+    if (shouldHideDashboardQuote_(obj)) continue;
     var status = String(row[cols.status] || "draft").toLowerCase().trim();
     var total = Number(row[cols.total] || 0);
     var createdAt = String(row[cols.created_at] || "");
@@ -11146,4 +11247,98 @@ function getRecentActivities(adminPassword, limit) {
     ok: true,
     activities: activities.slice(0, maxItems)
   };
+}
+
+/**
+ * 검증용: 크롤링 데이터에서 대표 자재 3개를 Materials에 등록.
+ * Apps Script 에디터에서 수동 실행. 실행 후 삭제해도 됨.
+ */
+function seedTestMaterials() {
+  ensureCoreSchemaReady_();
+  var pw = getAdminPasswordFromSettingsOrThrow_();
+  var results = [];
+
+  var materials = [
+    {
+      name: "신한벽지 SH15119-1 소중한시간 화이트",
+      brand: "신한벽지",
+      spec: "실크벽지 [스케치] 롤단위",
+      unit: "롤",
+      unit_price: 38500,
+      is_active: "Y",
+      is_representative: "Y",
+      material_type: "SILK_WALLPAPER",
+      trade_code: "WALLPAPER",
+      space_type: "RESIDENTIAL",
+      expose_to_prequote: "Y",
+      recommendation_score_base: 7,
+      price_band: "MID",
+      tags_summary: "MODERN, WARM_WHITE, MINIMAL",
+      image_file_id: "1PtS5ZqHSE8BOQcDZdi7mAU03Kd1LH8aP",
+      image_file_name: "신한벽지 SH15119-1소중한시간 화이트.jpg"
+    },
+    {
+      name: "KCC 그린편백 1.8T NP18-4733",
+      brand: "KCC",
+      spec: "장판 1.8mm 두께",
+      unit: "m",
+      unit_price: 7000,
+      is_active: "Y",
+      is_representative: "Y",
+      material_type: "FLOOR_SHEET",
+      trade_code: "FLOOR",
+      space_type: "RESIDENTIAL",
+      expose_to_prequote: "Y",
+      recommendation_score_base: 6,
+      price_band: "LOW",
+      tags_summary: "NATURAL_WARM, LIGHT_WOOD",
+      image_file_id: "1SKoOt81uGUA2TcX-4_EGrHzEOrBRxfmF",
+      image_file_name: "KCC 그린편백 1.8TNP18-4733.jpg"
+    },
+    {
+      name: "LX하우시스 단색 인테리어필름 화이트",
+      brand: "LX하우시스",
+      spec: "인테리어필름 단색 시트지 1220mm",
+      unit: "m",
+      unit_price: 5500,
+      is_active: "Y",
+      is_representative: "Y",
+      material_type: "INTERIOR_FILM",
+      trade_code: "FINISH",
+      space_type: "RESIDENTIAL",
+      expose_to_prequote: "Y",
+      recommendation_score_base: 5,
+      price_band: "LOW",
+      tags_summary: "CLEAN, WARM_WHITE, MINIMAL"
+    }
+  ];
+
+  var tagSets = [
+    [
+      { tag_type: "mood", tag_value: "MODERN", weight: 2, is_active: "Y" },
+      { tag_type: "mood", tag_value: "MINIMAL", weight: 1, is_active: "Y" },
+      { tag_type: "tone", tag_value: "WARM_WHITE", weight: 2, is_active: "Y" }
+    ],
+    [
+      { tag_type: "mood", tag_value: "NATURAL_WARM", weight: 2, is_active: "Y" },
+      { tag_type: "tone", tag_value: "LIGHT_WOOD", weight: 2, is_active: "Y" },
+      { tag_type: "feature", tag_value: "ECO_FRIENDLY", weight: 1, is_active: "Y" }
+    ],
+    [
+      { tag_type: "mood", tag_value: "CLEAN", weight: 2, is_active: "Y" },
+      { tag_type: "mood", tag_value: "MINIMAL", weight: 1, is_active: "Y" },
+      { tag_type: "tone", tag_value: "WARM_WHITE", weight: 2, is_active: "Y" }
+    ]
+  ];
+
+  for (var i = 0; i < materials.length; i++) {
+    try {
+      var saved = saveMaterialWithTagsAdmin(materials[i], tagSets[i], pw);
+      results.push({ ok: true, name: materials[i].name, material_id: saved && saved.material && saved.material.material_id });
+    } catch (e) {
+      results.push({ ok: false, name: materials[i].name, error: String(e.message || e) });
+    }
+  }
+  Logger.log(JSON.stringify(results, null, 2));
+  return results;
 }
