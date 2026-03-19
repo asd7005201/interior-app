@@ -609,6 +609,12 @@ function handleApiAction_(action, params, method) {
     if (action === "adminBulkUpdateRequests") return jsonResponse_({ ok: true, data: adminBulkUpdateRequests(params.credential, params.payload) });
     if (action === "adminCreateQuoteDraft") return jsonResponse_({ ok: true, data: adminCreateQuoteDraft(params.credential, params.requestId, params.options) });
     if (action === "adminSyncCaches") return jsonResponse_({ ok: true, data: adminSyncCaches(params.credential) });
+    if (action === "adminCheckSlackStatus") return jsonResponse_({ ok: true, data: adminCheckSlackStatus(params.credential) });
+    if (action === "adminSetSlackConfig") return jsonResponse_({ ok: true, data: adminSetSlackConfig(params.credential, params.config) });
+    if (action === "adminTestSlack") return jsonResponse_({ ok: true, data: adminTestSlack(params.credential) });
+    if (action === "adminAddContactEvent") return jsonResponse_({ ok: true, data: adminAddContactEvent(params.credential, params.requestId, params.eventType, params.note) });
+    if (action === "adminUpdateNextAction") return jsonResponse_({ ok: true, data: adminUpdateNextAction(params.credential, params.requestId, params.nextActionNote) });
+    if (action === "adminRunMigration") return jsonResponse_({ ok: true, data: adminRunMigration(params.credential, params.migrationId) });
 
     return jsonResponse_({ ok: false, error: "Unknown action: " + action });
   } catch (err) {
@@ -6872,6 +6878,14 @@ function adminSyncCaches(credential) {
   });
 }
 
+/** 검증용: 에디터에서 직접 실행하여 MaterialsCache 동기화 (인자 불필요) */
+function runSyncMaterialsNow() {
+  ensureSpreadsheetId_();
+  var result = runWithSyncLock_(syncMaterialsCacheInternal_);
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
 // ============================================================
 //  OWNER EMAIL TARGETS (for notifications)
 // ============================================================
@@ -6973,6 +6987,209 @@ function applyReleaseSettings_ADMIN(entries, credential) {
     spreadsheet_id: String(ss.getId() || "").trim(),
     touched: touched
   };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Slack 설정 관리 (adminCheckSlackStatus / adminSetSlackConfig / adminTestSlack)
+// ─────────────────────────────────────────────────────────────
+
+function adminCheckSlackStatus(credential) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var props = PropertiesService.getScriptProperties();
+  var url = String(props.getProperty("SLACK_WEBHOOK_URL") || "").trim();
+  var channel = String(props.getProperty("SLACK_CHANNEL") || "").trim();
+  var settings = getSettings_();
+  return {
+    configured: !!url,
+    webhook_url_masked: url ? (url.slice(0, 30) + "…***") : "",
+    channel: channel || settings.slack_channel || "",
+    notify_on_submit: settings.slack_notify_on_submit || "Y",
+    notify_on_result_view: settings.slack_notify_on_result_view || "Y"
+  };
+}
+
+function adminSetSlackConfig(credential, config) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var cfg = config || {};
+  var props = PropertiesService.getScriptProperties();
+  if (typeof cfg.webhook_url === "string") {
+    var url = String(cfg.webhook_url || "").trim();
+    if (url) props.setProperty("SLACK_WEBHOOK_URL", url);
+    else props.deleteProperty("SLACK_WEBHOOK_URL");
+  }
+  if (typeof cfg.channel === "string") {
+    var ch = String(cfg.channel || "").trim();
+    if (ch) props.setProperty("SLACK_CHANNEL", ch);
+    else props.deleteProperty("SLACK_CHANNEL");
+  }
+  Utilities.sleep(500);
+  return adminCheckSlackStatus(credential);
+}
+
+function adminTestSlack(credential) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var props = PropertiesService.getScriptProperties();
+  var url = String(props.getProperty("SLACK_WEBHOOK_URL") || "").trim();
+  if (!url) return { ok: false, reason: "webhook_not_configured", message: "SLACK_WEBHOOK_URL이 설정되지 않았습니다." };
+  var dedupKey = "admin:test-slack:" + nowIso_().slice(0, 16);
+  var result = sendSlackWebhook_("TEST", "ADMIN_TEST", dedupKey, {
+    text: "✅ *Slack 연동 테스트 성공*\n가견적 관리자 워크스페이스에서 Slack 알림이 정상적으로 작동합니다.\n테스트 시각: " + nowIso_()
+  });
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 다음 액션 인라인 편집 (P1-2) — adminUpdateNextAction
+// ─────────────────────────────────────────────────────────────
+
+function adminUpdateNextAction(credential, requestId, nextActionNote) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var rid = String(requestId || "").trim();
+  if (!rid) throw new Error("requestId is required");
+  var found = findRowByCol_("Requests", "request_id", rid);
+  if (!found) throw new Error("요청을 찾을 수 없습니다: " + rid);
+  var note = String(nextActionNote || "").trim();
+  var now = nowIso_();
+  updateRowFields_(found.sheet, found.rowNo, found.meta, {
+    next_action_note: note,
+    updated_at: now
+  });
+  var summary = buildNextActionSummary_(Object.assign({}, found.data, { next_action_note: note }));
+  return {
+    ok: true,
+    request_id: rid,
+    next_action_note: note,
+    next_action_summary: summary,
+    updated_at: now
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 연락 이력 기록 (P1-1) — adminAddContactEvent
+// ─────────────────────────────────────────────────────────────
+
+var CONTACT_EVENT_LABELS_ = {
+  CALL_DONE:    "전화 통화 완료",
+  CALL_MISSED:  "전화 부재중",
+  KAKAO_SENT:   "카카오 메시지 발송",
+  VISIT_DONE:   "현장 방문 완료",
+  VISIT_BOOKED: "방문 일정 예약",
+  ESTIMATE_SENT:"견적서 발송",
+  MEMO:         "메모"
+};
+
+function adminAddContactEvent(credential, requestId, eventType, note) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var rid = String(requestId || "").trim();
+  if (!rid) throw new Error("requestId is required");
+  var evtType = String(eventType || "MEMO").trim().toUpperCase();
+  var label = CONTACT_EVENT_LABELS_[evtType] || evtType;
+  var noteText = String(note || "").trim();
+  var timelineRow = {
+    event_id: uuid_(),
+    request_id: rid,
+    actor_type: "ADMIN",
+    actor_id: "",
+    event_type: evtType,
+    from_status: "",
+    to_status: "",
+    message: label + (noteText ? ": " + noteText : ""),
+    payload_json: JSON.stringify({ note: noteText }),
+    event_label: label,
+    created_at: nowIso_()
+  };
+  appendRow_("RequestTimeline", timelineRow);
+  return { ok: true, event_id: timelineRow.event_id, label: label, created_at: timelineRow.created_at };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 일반 마이그레이션 실행기 (adminRunMigration)
+// ─────────────────────────────────────────────────────────────
+
+function adminRunMigration(credential, migrationId) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var id = String(migrationId || "").trim();
+  if (id === "survey_question_copy_v1") return migrateSurveyQuestionCopy();
+  throw new Error("Unknown migration: " + id);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 설문 문구 개선 마이그레이션 (P1-3)
+// GAS 에디터에서 직접 실행: migrateSurveyQuestionCopy()
+// ─────────────────────────────────────────────────────────────
+
+function migrateSurveyQuestionCopy() {
+  ensureSpreadsheetId_();
+  var ss = SpreadsheetApp.openById(getSpreadsheetId_());
+  var sheet = ss.getSheetByName("SurveyQuestions");
+  if (!sheet) { Logger.log("SurveyQuestions 시트 없음"); return; }
+
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var colCode = headers.indexOf("question_code");
+  var colTitle = headers.indexOf("title");
+  var colDesc = headers.indexOf("description");
+  var colHelper = headers.indexOf("helper_text");
+
+  if (colCode < 0 || colTitle < 0) { Logger.log("헤더를 찾을 수 없음"); return; }
+
+  var patches = {
+    "R302_MEP": {
+      title: "배관·전기 공사도 포함할까요?",
+      description: "설비(상하수도·난방), 전기(콘센트·조명 배선) 교체를 원하시면 선택해 주세요.",
+      helper_text: "공사 중에 벽이나 바닥을 열어야 할 수 있어요."
+    },
+    "R301_RISKS": {
+      title: "특수 상황이 있나요?",
+      description: "아래에 해당하는 게 있으면 정확한 범위 안내에 도움이 됩니다.",
+      helper_text: "없으시면 그냥 넘어가도 됩니다."
+    },
+    "R013_STRUCTURE": {
+      title: "공간 구조를 바꾸실 건가요?",
+      description: "방과 거실 사이 벽을 트거나 새로 만드는 경우를 말해요.",
+      helper_text: "구조 변경은 현장 확인 후 최종 결정할 수 있어요."
+    },
+    "R100_DEMO_SCOPE": {
+      title: "기존 마감재를 얼마나 뜯어낼까요?",
+      description: "도배·장판·타일 등 지금 있는 마감재를 제거하는 범위입니다.",
+      helper_text: "전체 제거일수록 새 자재가 더 잘 붙고 하자가 적어요."
+    }
+  };
+
+  var updated = [];
+  for (var i = 1; i < data.length; i++) {
+    var code = String(data[i][colCode] || "").trim();
+    if (!patches[code]) continue;
+    var p = patches[code];
+    if (p.title !== undefined && colTitle >= 0) {
+      sheet.getRange(i + 1, colTitle + 1).setValue(p.title);
+    }
+    if (p.description !== undefined && colDesc >= 0) {
+      sheet.getRange(i + 1, colDesc + 1).setValue(p.description);
+    }
+    if (p.helper_text !== undefined && colHelper >= 0) {
+      sheet.getRange(i + 1, colHelper + 1).setValue(p.helper_text);
+    }
+    updated.push(code);
+    Utilities.sleep(300);
+  }
+
+  // 설문 캐시 무효화
+  try {
+    var cache = CacheService.getScriptCache();
+    var keys = cache.getAll([SURVEY_CONFIG_CACHE_PREFIX_ + "_v2"]);
+    Logger.log("Updated questions: " + updated.join(", "));
+    Logger.log("Survey config cache will expire naturally (TTL 1h)");
+  } catch (e) {}
+
+  Logger.log("마이그레이션 완료: " + updated.length + "개 질문 업데이트");
+  return { updated: updated };
 }
 
 function runScheduledSync_() {

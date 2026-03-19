@@ -346,7 +346,7 @@
     var o = opts || {};
     var text = esc(label);
     if (!o.show){
-      return '<span class="btn btn--weak btn--sm quote-action-placeholder" aria-hidden="true">' + text + '</span>';
+      return "";
     }
     var qid = esc(o.quoteId || "");
     if (o.href){
@@ -620,9 +620,9 @@
                          memoState +
                        '</div>';
       actionHtml += '<div class="quote-actions-grid">';
-      actionHtml += actionSlot("view", { show: !!x.view_url, href: x.view_url, quoteId: quoteId });
-      actionHtml += actionSlot("print", { show: !!x.print_url, href: x.print_url, quoteId: quoteId });
-      actionHtml += actionSlot("요청보기", { show: hasMemo, action: "show-note", quoteId: quoteId });
+      actionHtml += actionSlot("열기", { show: !!x.view_url, href: x.view_url, quoteId: quoteId });
+      actionHtml += actionSlot("인쇄", { show: !!x.print_url, href: x.print_url, quoteId: quoteId });
+      actionHtml += actionSlot("메모", { show: hasMemo, action: "show-note", quoteId: quoteId });
       actionHtml += actionSlot("읽음", { show: newMemo, action: "mark-read", quoteId: quoteId });
       actionHtml += '</div>';
 
@@ -686,7 +686,7 @@
     initBentoNav();
     if (window.AppUI) window.AppUI.enhanceSheet($("memoSheet"));
     restorePw();
-    maybeUpgradeToSessionToken(function(){ patchNavLinks(); });
+    maybeUpgradeToSessionToken(function(){ patchNavLinks(); if (pw()) load(); });
     $("adminPw").addEventListener("input", function(){ pw(); });
     $("btnLock").addEventListener("click", clearPw);
     $("btnToggleQuoteIds").addEventListener("click", function(){

@@ -84,6 +84,9 @@
     .review-chip.OVERRIDDEN{background:rgba(47,107,94,.12);color:var(--color-primary)}
     .selection-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font:var(--f-sm);color:var(--color-text-sub)}
     .empty-state{padding:52px 18px;text-align:center;color:var(--color-text-sub)}
+    .next-action-cell{cursor:pointer;border-radius:6px;padding:2px 4px;transition:background .15s}
+    .next-action-cell:hover{background:rgba(47,107,94,.1)}
+    .next-action-cell strong{pointer-events:none}
     .detail-overlay{position:fixed;inset:0;z-index:80;background:rgba(26,24,22,.28);backdrop-filter:blur(8px);padding:20px}
     .detail-panel{width:min(1700px,100%);height:calc(100vh - 40px);margin:0 auto;background:#f7f6f1;border-radius:28px;overflow:hidden;box-shadow:0 40px 90px rgba(24,22,20,.24);display:flex;flex-direction:column}
     .detail-scroll{flex:1;overflow:auto}
@@ -239,6 +242,7 @@
             <button type="button" class="workspace-tab" data-tab="requests">요청 목록</button>
             <button type="button" class="workspace-tab" data-tab="bulk">벌크 처리</button>
             <button type="button" class="workspace-tab" data-tab="ops">운영 스트립</button>
+            <button type="button" class="workspace-tab" data-tab="settings">⚙ 설정</button>
           </div>
           <div class="workspace-inline">
             <button id="btnToggleQueue" class="btn btn-secondary btn-sm">KPI 접기</button>
@@ -350,6 +354,47 @@
           </div>
         </div>
       </section>
+
+      <section id="settingsPanel" class="panel" data-tab-pane="settings">
+        <div class="panel-head">
+          <div class="panel-title">운영 설정</div>
+          <div class="selection-meta">Slack 알림 및 시스템 설정</div>
+        </div>
+        <div class="panel-body">
+          <div style="display:grid;gap:28px;max-width:600px">
+
+            <div style="background:rgba(47,107,94,.06);border:1px solid rgba(47,107,94,.16);border-radius:18px;padding:22px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div>
+                  <div style="font:700 16px/1.2 var(--ff)">Slack 알림 설정</div>
+                  <div style="font:var(--f-sm);color:var(--color-text-sub);margin-top:4px">신규 접수 및 고객 결과 조회 시 알림을 받습니다</div>
+                </div>
+                <span id="slackStatusBadge" class="soft-chip muted">확인 중...</span>
+              </div>
+
+              <div class="field-stack" style="margin-bottom:12px">
+                <label for="slackWebhookUrl">Slack Webhook URL</label>
+                <input id="slackWebhookUrl" class="input" type="password" placeholder="https://hooks.slack.com/services/…" autocomplete="off">
+                <div style="font:var(--f-xs);color:var(--color-text-sub);margin-top:4px">Slack 앱 → Incoming Webhooks에서 복사하세요</div>
+              </div>
+
+              <div class="field-stack" style="margin-bottom:16px">
+                <label for="slackChannel">채널 (선택)</label>
+                <input id="slackChannel" class="input" type="text" placeholder="#interior-alerts">
+                <div style="font:var(--f-xs);color:var(--color-text-sub);margin-top:4px">비워두면 Webhook 기본 채널로 발송됩니다</div>
+              </div>
+
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button id="btnSaveSlack" class="btn btn-primary">저장</button>
+                <button id="btnTestSlack" class="btn btn-secondary">테스트 알림 보내기</button>
+              </div>
+              <div id="slackSaveStatus" style="min-height:20px;margin-top:12px;font:var(--f-sm);color:var(--color-text-sub)"></div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
     </main>
   </section>
 </div>
@@ -602,10 +647,13 @@
   }
   function setWorkspaceTab(tab){
     var nextTab = String(tab || "requests").toLowerCase();
-    if (["requests", "bulk", "ops"].indexOf(nextTab) < 0) nextTab = "requests";
+    if (["requests", "bulk", "ops", "settings"].indexOf(nextTab) < 0) nextTab = "requests";
     state.activeTab = nextTab;
     if (state.activeTab !== "ops") state.queueCollapsed = kpiCardsMode() === "COLLAPSED";
     syncWorkspaceLayout();
+    if (nextTab === "settings" && state.credential) {
+      loadSlackStatus().catch(function(){});
+    }
   }
   function toggleQueuePanel(){
     if (kpiCardsMode() === "HIDDEN") return;
@@ -754,7 +802,7 @@
           '<td><div class="row-main"><strong>' + esc(formatRange(row.estimate_min, row.estimate_max)) + '</strong><span class="row-sub">자동 산출: ' + esc(formatRange(row.auto_estimate_min, row.auto_estimate_max)) + '</span><span class="row-sub">' + esc(row.estimate_source_label || "-") + '</span></div></td>' +
           '<td><div class="row-main"><span class="review-chip ' + esc(row.review_status) + '">' + esc(row.review_status_label || row.review_status) + '</span><span class="row-sub">' + esc(row.latest_review_at ? ("최근 저장 " + formatDateTime(row.latest_review_at)) : "저장 이력 없음") + '</span></div></td>' +
           '<td><div class="row-main">' + queueBits.join(" ") + '<span class="row-sub">' + esc(row.work_state_label || "-") + '</span></div></td>' +
-          '<td><div class="row-main"><strong>' + esc(row.next_action_summary || "다음 액션 미설정") + '</strong><span class="row-sub">' + esc(row.reminder_at ? ("리마인드 " + formatDateTime(row.reminder_at)) : "리마인드 없음") + '</span></div></td>' +
+          '<td><div class="row-main"><span class="next-action-cell" data-request-id="' + attr(row.request_id) + '" data-action="inline-next-action" title="클릭하면 바로 편집할 수 있습니다"><strong>' + esc(row.next_action_summary || "다음 액션 미설정") + '</strong></span><span class="row-sub">' + esc(row.reminder_at ? ("리마인드 " + formatDateTime(row.reminder_at)) : "리마인드 없음") + '</span></div></td>' +
           '<td><div class="row-main"><span class="status-chip ' + esc(row.status) + '">' + esc(row.status_label || row.status) + '</span><span class="row-sub">' + esc(row.quote_draft_status || "견적앱 연결 전") + '</span></div></td>' +
         '</tr>';
     }).join("");
@@ -1132,8 +1180,19 @@
             '<div id="recommendationListWrap" class="rec-list" style="margin-top:12px">' + renderRecommendations() + '</div>' +
           '</div></details>' +
           '<details class="fold-card"><summary><span>설문 응답</span><span>' + esc(String(answerGroups.length)) + '개 그룹</span></summary><div class="fold-body">' + renderAnswerGroups(answerGroups) + '</div></details>' +
-          '<details class="fold-card"><summary><span>타임라인</span><span>' + esc(String(timeline.length)) + '건</span></summary><div class="fold-body">' +
-            '<div class="material-search" style="grid-template-columns:minmax(0,1fr) auto"><input id="timelineNoteInput" class="input" type="text" placeholder="운영 메모를 남기면 타임라인에 기록됩니다."><button class="btn btn-secondary" data-action="timeline-note">메모 추가</button></div>' +
+          '<details class="fold-card" open><summary><span>연락 이력 &amp; 타임라인</span><span>' + esc(String(timeline.length)) + '건</span></summary><div class="fold-body">' +
+            '<div style="margin-bottom:12px">' +
+              '<div style="font:var(--f-xs);color:var(--color-text-sub);font-weight:700;margin-bottom:8px;letter-spacing:.02em">빠른 연락 기록</div>' +
+              '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+                '<button class="btn btn-secondary btn-sm" data-action="contact-event" data-event-type="CALL_DONE">📞 전화 완료</button>' +
+                '<button class="btn btn-secondary btn-sm" data-action="contact-event" data-event-type="CALL_MISSED">📵 부재중</button>' +
+                '<button class="btn btn-secondary btn-sm" data-action="contact-event" data-event-type="KAKAO_SENT">💬 카카오 발송</button>' +
+                '<button class="btn btn-secondary btn-sm" data-action="contact-event" data-event-type="VISIT_BOOKED">📅 방문 예약</button>' +
+                '<button class="btn btn-secondary btn-sm" data-action="contact-event" data-event-type="VISIT_DONE">🏠 방문 완료</button>' +
+                '<button class="btn btn-secondary btn-sm" data-action="contact-event" data-event-type="ESTIMATE_SENT">📄 견적서 발송</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="material-search" style="grid-template-columns:minmax(0,1fr) auto"><input id="timelineNoteInput" class="input" type="text" placeholder="메모를 남기면 타임라인에 기록됩니다."><button class="btn btn-secondary" data-action="timeline-note">메모 추가</button></div>' +
             '<div class="timeline-list" style="margin-top:12px">' + (timeline.length ? timeline.map(function(item){
               return '<div class="timeline-item"><div class="head"><strong>' + esc(item.event_type_label || item.event_type || "이력") + '</strong><span class="row-sub">' + esc(formatDateTime(item.event_at)) + '</span></div><p>' + escapeMultiline(item.message_display || item.message || "-") + '</p></div>';
             }).join("") : '<div class="empty-state">타임라인이 없습니다.</div>') + '</div>' +
@@ -1683,6 +1742,68 @@
     }
     toast("타임라인 메모를 추가했습니다.", "success");
   }
+  function openInlineNextAction(cell) {
+    if (cell.querySelector("input")) return;
+    var requestId = cell.getAttribute("data-request-id");
+    var row = (state.dashboard && state.dashboard.requests || []).find(function(r){ return r.request_id === requestId; });
+    var currentNote = row ? (row.next_action_note || "") : "";
+    var strong = cell.querySelector("strong");
+    var origHtml = cell.innerHTML;
+    var input = document.createElement("input");
+    input.type = "text";
+    input.value = currentNote;
+    input.className = "input";
+    input.style.cssText = "width:100%;min-width:160px;font:inherit;padding:4px 8px;height:auto";
+    input.placeholder = "다음 액션 입력...";
+    cell.innerHTML = "";
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+    var saving = false;
+    async function save() {
+      if (saving) return;
+      saving = true;
+      var newNote = input.value.trim();
+      cell.innerHTML = origHtml;
+      if (newNote === currentNote) return;
+      try {
+        var res = await callServer("adminUpdateNextAction", [state.credential, requestId, newNote], null, {
+          flightKey: "next-action:" + requestId
+        });
+        if (res && row) {
+          row.next_action_note = newNote;
+          row.next_action_summary = res.next_action_summary || newNote;
+          var newStrong = cell.querySelector("strong");
+          if (newStrong) newStrong.textContent = row.next_action_summary || "다음 액션 미설정";
+        }
+        toast("다음 액션이 저장됐습니다.", "success");
+      } catch (err) {
+        handleError(err);
+      }
+    }
+    input.addEventListener("blur", save);
+    input.addEventListener("keydown", function(e){
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      if (e.key === "Escape") { saving = true; cell.innerHTML = origHtml; }
+    });
+  }
+
+  async function addContactEvent(eventType, btn) {
+    if (!state.detail || !state.detail.request) throw new Error("상세 정보가 없습니다.");
+    var requestId = state.detail.request.request_id;
+    var res = await callServer("adminAddContactEvent", [state.credential, requestId, eventType, ""], btn, {
+      flightKey: "contact-event:" + requestId + ":" + eventType,
+      busyText: "기록 중..."
+    });
+    if (res && res.ok) {
+      var label = res.label || eventType;
+      applyLocalTimelineNote({ event_id: res.event_id, message: label, event_at: res.created_at });
+      toast(label + " 기록됐습니다.", "success");
+    } else {
+      throw new Error("연락 이력 기록에 실패했습니다.");
+    }
+  }
+
   async function createQuoteDraft(btn){
     if (!state.detail) return;
     await saveDetail(btn, { silent: true });
@@ -1840,6 +1961,12 @@
     });
     $("requestTableBody").addEventListener("click", function(e){
       if (e.target.classList.contains("row-check")) return;
+      var inlineCell = e.target.closest("[data-action='inline-next-action']");
+      if (inlineCell) {
+        e.stopPropagation();
+        openInlineNextAction(inlineCell);
+        return;
+      }
       var tr = e.target.closest("tr[data-request-id]");
       if (!tr) return;
       if (tr.classList.contains("is-loading-row")) return;
@@ -1901,6 +2028,7 @@
       else if (action === "rec-toggle-hide") toggleRecommendationHidden(target.getAttribute("data-rec-id"));
       else if (action === "rec-toggle-delete") toggleRecommendationDeleted(target.getAttribute("data-rec-id"));
       else if (action === "timeline-note") addTimelineNote(target).catch(handleError);
+      else if (action === "contact-event") addContactEvent(target.getAttribute("data-event-type"), target).catch(handleError);
       else if (action === "copy-summary") {
         var summary = (state.detail && state.detail.consultation_summary) || {};
         var text = target.getAttribute("data-copy-kind") === "short" ? (summary.short_text || "") : (summary.internal_text || "");
@@ -1910,7 +2038,67 @@
       }
     });
     document.addEventListener("keydown", function(e){ if (e.key === "Escape" && state.detail) closeDetail(); });
+
+    // ── Slack 설정 탭 ──
+    $("btnSaveSlack").addEventListener("click", function(){ saveSlackConfig(this).catch(handleError); });
+    $("btnTestSlack").addEventListener("click", function(){ testSlack(this).catch(handleError); });
   }
+
+  // ── Slack 설정 관련 함수 ──
+  async function loadSlackStatus() {
+    var res = await callServer("adminCheckSlackStatus", [state.credential], null, { flightKey: "slackStatus" });
+    if (!res) return;
+    var badge = $("slackStatusBadge");
+    if (res.configured) {
+      badge.textContent = "✅ 연동됨";
+      badge.className = "soft-chip";
+    } else {
+      badge.textContent = "⚠ 미설정";
+      badge.className = "soft-chip warn";
+    }
+    if (res.channel) $("slackChannel").value = res.channel;
+  }
+
+  async function saveSlackConfig(btn) {
+    var webhookUrl = String($("slackWebhookUrl").value || "").trim();
+    var channel = String($("slackChannel").value || "").trim();
+    $("slackSaveStatus").textContent = "";
+    var res = await callServer("adminSetSlackConfig", [state.credential, { webhook_url: webhookUrl, channel: channel }], btn, { busyText: "저장 중..." });
+    if (res && res.configured) {
+      $("slackSaveStatus").textContent = "✅ 저장됐습니다.";
+      $("slackWebhookUrl").value = "";
+      await loadSlackStatus();
+    } else {
+      $("slackSaveStatus").textContent = webhookUrl ? "저장됐습니다. (URL 삭제됨)" : "✅ 채널 설정이 저장됐습니다.";
+      await loadSlackStatus();
+    }
+  }
+
+  async function testSlack(btn) {
+    $("slackSaveStatus").textContent = "";
+    var res = await callServer("adminTestSlack", [state.credential], btn, { busyText: "테스트 중..." });
+    if (res && res.ok && !res.skipped) {
+      $("slackSaveStatus").textContent = "✅ Slack에 테스트 메시지를 보냈습니다.";
+    } else if (res && res.reason === "webhook_not_configured") {
+      $("slackSaveStatus").textContent = "⚠ Webhook URL을 먼저 설정해 주세요.";
+    } else if (res && res.skipped) {
+      $("slackSaveStatus").textContent = "ℹ 중복 메시지로 건너뛰었습니다. 1분 후 다시 시도하세요.";
+    } else {
+      $("slackSaveStatus").textContent = "❌ 전송 실패: " + (res && res.reason || "알 수 없는 오류");
+    }
+  }
+
+  // 설정 탭 진입 시 Slack 상태 자동 로드
+  var _origSetWorkspaceTab = null;
+  function patchSettingsTabLoad(originalFn) {
+    return function(tab) {
+      originalFn(tab);
+      if (tab === "settings" && state.credential) {
+        loadSlackStatus().catch(function(){});
+      }
+    };
+  }
+
   async function boot(){
     renderStaticOptions();
     setWorkspaceTab(state.activeTab);
