@@ -87,6 +87,19 @@
     .next-action-cell{cursor:pointer;border-radius:6px;padding:2px 4px;transition:background .15s}
     .next-action-cell:hover{background:rgba(47,107,94,.1)}
     .next-action-cell strong{pointer-events:none}
+    .funnel-section{margin-top:14px;padding:14px 16px;background:rgba(255,255,255,.5);border-radius:14px;border:1px solid rgba(122,116,108,.1)}
+    .funnel-title{font:var(--f-xs);color:var(--color-text-sub);font-weight:700;letter-spacing:.04em;margin-bottom:10px}
+    .funnel-steps{display:flex;align-items:stretch;gap:0}
+    .funnel-step{flex:1;position:relative;text-align:center;padding:10px 8px 10px 16px}
+    .funnel-step::before{content:"";position:absolute;left:0;top:0;bottom:0;width:1px;background:rgba(122,116,108,.14)}
+    .funnel-step:first-child::before{display:none}
+    .funnel-bar-track{height:6px;border-radius:3px;background:rgba(122,116,108,.12);margin:6px auto 0;max-width:80px}
+    .funnel-bar-fill{height:6px;border-radius:3px;background:var(--color-primary);transition:width .4s ease}
+    .funnel-count{font:700 20px/1.1 var(--ff);color:var(--color-text)}
+    .funnel-label{font:var(--f-xs);color:var(--color-text-sub);margin-top:2px}
+    .funnel-rate{display:inline-block;margin-top:4px;font:var(--f-xs);font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(47,107,94,.1);color:var(--color-primary)}
+    .funnel-rate.warn{background:rgba(184,150,59,.14);color:#7b621d}
+    .funnel-rate.danger{background:rgba(184,47,36,.1);color:var(--color-danger)}
     .detail-overlay{position:fixed;inset:0;z-index:80;background:rgba(26,24,22,.28);backdrop-filter:blur(8px);padding:20px}
     .detail-panel{width:min(1700px,100%);height:calc(100vh - 40px);margin:0 auto;background:#f7f6f1;border-radius:28px;overflow:hidden;box-shadow:0 40px 90px rgba(24,22,20,.24);display:flex;flex-direction:column}
     .detail-scroll{flex:1;overflow:auto}
@@ -257,6 +270,10 @@
         </div>
         <div class="panel-body">
           <div id="queueGrid" class="queue-grid"></div>
+          <div id="funnelSection" class="funnel-section hidden">
+            <div class="funnel-title">전환율 퍼널 (전체 누적)</div>
+            <div id="funnelSteps" class="funnel-steps"></div>
+          </div>
         </div>
       </section>
 
@@ -736,6 +753,48 @@
     });
     return out;
   }
+  function buildFunnelStats(rows){
+    var list = Array.isArray(rows) ? rows : [];
+    var total = list.length;
+    var contacted = 0, scheduled = 0, converted = 0;
+    list.forEach(function(row){
+      var s = String((row && row.status) || "NEW").trim().toUpperCase();
+      if (s === "CONTACTED" || s === "SCHEDULED" || s === "CONVERTED" || s === "CLOSED") contacted++;
+      if (s === "SCHEDULED" || s === "CONVERTED" || s === "CLOSED") scheduled++;
+      if (s === "CONVERTED" || s === "CLOSED") converted++;
+    });
+    return { total:total, contacted:contacted, scheduled:scheduled, converted:converted };
+  }
+  function renderFunnel(){
+    var dash = state.dashboard || {};
+    var rows = Array.isArray(dash.requests) ? dash.requests : [];
+    var f = buildFunnelStats(rows);
+    var section = $("funnelSection");
+    var stepsEl = $("funnelSteps");
+    if (!section || !stepsEl) return;
+    section.classList.toggle("hidden", f.total === 0);
+    if (f.total === 0) return;
+    function pct(n, d){ return d > 0 ? Math.round(n / d * 100) : 0; }
+    function rateClass(p){ return p >= 60 ? "" : p >= 30 ? "warn" : "danger"; }
+    var steps = [
+      { label:"가견적 접수", count:f.total, rate:100, base:f.total },
+      { label:"연락 완료", count:f.contacted, rate:pct(f.contacted, f.total), base:f.total },
+      { label:"상담 예정/완료", count:f.scheduled, rate:pct(f.scheduled, f.contacted || 1), base:f.contacted },
+      { label:"실견적 전환", count:f.converted, rate:pct(f.converted, f.scheduled || 1), base:f.scheduled }
+    ];
+    stepsEl.innerHTML = steps.map(function(s, i){
+      var barWidth = pct(s.count, f.total);
+      var rateHtml = i === 0
+        ? '<span class="funnel-rate">100%</span>'
+        : '<span class="funnel-rate ' + rateClass(s.rate) + '">' + s.rate + '%</span>';
+      return '<div class="funnel-step">' +
+        '<div class="funnel-count">' + s.count.toLocaleString("ko-KR") + '</div>' +
+        '<div class="funnel-label">' + esc(s.label) + '</div>' +
+        rateHtml +
+        '<div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:' + barWidth + '%"></div></div>' +
+        '</div>';
+    }).join("");
+  }
   function applyDashboardPatch(patch){
     if (!patch || !patch.request_id || !state.dashboard) return false;
     var rows = Array.isArray(state.dashboard.requests) ? state.dashboard.requests.slice() : [];
@@ -754,6 +813,7 @@
       state.detail.request = Object.assign({}, state.detail.request, nextRow);
     }
     renderQueue();
+    renderFunnel();
     applyFilters();
     return true;
   }
@@ -816,6 +876,7 @@
     });
     state.dashboard = res || {};
     renderQueue();
+    renderFunnel();
     applyFilters();
   }
   async function tryCredential(credential, btn){
