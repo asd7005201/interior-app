@@ -615,6 +615,7 @@ function handleApiAction_(action, params, method) {
     if (action === "adminAddContactEvent") return jsonResponse_({ ok: true, data: adminAddContactEvent(params.credential, params.requestId, params.eventType, params.note) });
     if (action === "adminUpdateNextAction") return jsonResponse_({ ok: true, data: adminUpdateNextAction(params.credential, params.requestId, params.nextActionNote) });
     if (action === "adminRunMigration") return jsonResponse_({ ok: true, data: adminRunMigration(params.credential, params.migrationId) });
+    if (action === "adminSetupNotificationsTrigger") return jsonResponse_({ ok: true, data: adminSetupNotificationsTrigger(params.credential) });
 
     return jsonResponse_({ ok: false, error: "Unknown action: " + action });
   } catch (err) {
@@ -7116,7 +7117,33 @@ function adminRunMigration(credential, migrationId) {
   assertAdminCredential_(credential);
   var id = String(migrationId || "").trim();
   if (id === "survey_question_copy_v1") return migrateSurveyQuestionCopy();
+  if (id === "survey_questions_v2") return migrateAddSurveyQuestionsV2();
   throw new Error("Unknown migration: " + id);
+}
+
+// ─────────────────────────────────────────────────────────────
+// P2-3: 알림 트리거 설정 (Admin API)
+// ─────────────────────────────────────────────────────────────
+
+function adminSetupNotificationsTrigger(credential) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var existing = ScriptApp.getProjectTriggers();
+  var hadTrigger = false;
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getHandlerFunction() === "runOperationalNotifications_") {
+      ScriptApp.deleteTrigger(existing[i]);
+      hadTrigger = true;
+    }
+  }
+  var settings = getSettings_();
+  var mode = String(settings.perf_dashboard_notifications_mode || "TRIGGER").trim().toUpperCase();
+  if (mode === "DISABLED" || mode === "OFF" || mode === "NONE") {
+    return { enabled: false, mode: mode, message: "알림 모드가 비활성화 상태입니다 (Settings: perf_dashboard_notifications_mode)." };
+  }
+  var mins = Math.max(Number(settings.operational_notifications_interval_minutes || settings.sync_interval_minutes || 30), 10);
+  ScriptApp.newTrigger("runOperationalNotifications_").timeBased().everyMinutes(mins).create();
+  return { enabled: true, mode: mode, interval_minutes: mins, replaced: hadTrigger };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -7190,6 +7217,185 @@ function migrateSurveyQuestionCopy() {
 
   Logger.log("마이그레이션 완료: " + updated.length + "개 질문 업데이트");
   return { updated: updated };
+}
+
+// ─────────────────────────────────────────────────────────────
+// P1-3 + P2-2: 설문 추가 질문 + 용어 개선 마이그레이션 v2
+// ─────────────────────────────────────────────────────────────
+
+function migrateAddSurveyQuestionsV2() {
+  ensureSpreadsheetId_();
+  var ss = SpreadsheetApp.openById(getSpreadsheetId_());
+  var qSheet = ss.getSheetByName("SurveyQuestions");
+  var oSheet = ss.getSheetByName("SurveyOptions");
+  if (!qSheet || !oSheet) return { error: "SurveyQuestions 또는 SurveyOptions 시트 없음" };
+
+  var qData = qSheet.getDataRange().getValues();
+  var qHeaders = qData[0];
+  var oData = oSheet.getDataRange().getValues();
+  var oHeaders = oData[0];
+
+  // 이미 있는 question_code 수집
+  var qCodeIdx = qHeaders.indexOf("question_code");
+  var existingCodes = {};
+  for (var i = 1; i < qData.length; i++) {
+    var c = String(qData[i][qCodeIdx] || "").trim();
+    if (c) existingCodes[c] = true;
+  }
+
+  // 이미 있는 option question_id 수집
+  var oQidIdx = oHeaders.indexOf("question_id");
+  var oCodeIdx2 = oHeaders.indexOf("option_code");
+  var existingOptionKeys = {};
+  for (var j = 1; j < oData.length; j++) {
+    var k = String(oData[j][oQidIdx] || "") + ":" + String(oData[j][oCodeIdx2] || "");
+    existingOptionKeys[k] = true;
+  }
+
+  // 현재 최대 sort_order 파악
+  var qSortIdx = qHeaders.indexOf("sort_order");
+  var maxSort = 0;
+  for (var ii = 1; ii < qData.length; ii++) {
+    var s = Number(qData[ii][qSortIdx] || 0);
+    if (s > maxSort) maxSort = s;
+  }
+
+  // P1-3: 추가 문구 개선 (기존 질문 제목/설명 업데이트)
+  var colCode = qCodeIdx;
+  var colTitle = qHeaders.indexOf("title");
+  var colDesc = qHeaders.indexOf("description");
+  var colHelper = qHeaders.indexOf("helper_text");
+  var extraPatches = {
+    "R011_SCOPE_LEVEL": {
+      title: "인테리어 범위가 어떻게 되나요?",
+      description: "공사할 공간의 범위를 선택해 주세요.",
+      helper_text: "전체 리모델링은 모든 공간을, 부분 리모델링은 선택한 공간만 공사합니다."
+    },
+    "R012_TRADES": {
+      title: "어떤 공사가 필요하신가요?",
+      description: "필요한 공사 종류를 모두 선택해 주세요.",
+      helper_text: "잘 모르시면 실장님이 현장 확인 후 안내해 드립니다."
+    }
+  };
+  var patchedCodes = [];
+  for (var pi = 1; pi < qData.length; pi++) {
+    var pCode = String(qData[pi][colCode] || "").trim();
+    if (!extraPatches[pCode]) continue;
+    var pp = extraPatches[pCode];
+    if (pp.title !== undefined && colTitle >= 0) qSheet.getRange(pi + 1, colTitle + 1).setValue(pp.title);
+    if (pp.description !== undefined && colDesc >= 0) qSheet.getRange(pi + 1, colDesc + 1).setValue(pp.description);
+    if (pp.helper_text !== undefined && colHelper >= 0) qSheet.getRange(pi + 1, colHelper + 1).setValue(pp.helper_text);
+    patchedCodes.push(pCode);
+    Utilities.sleep(300);
+  }
+
+  // P2-2: 새 질문 추가
+  var newQuestions = [
+    {
+      question_code: "R003_FLOOR_INFO",
+      question_type: "SINGLE_SELECT",
+      title: "몇 층이고 엘리베이터가 있나요?",
+      description: "층수와 엘리베이터 여부는 자재 운반 비용에 영향을 줍니다.",
+      helper_text: "엘리베이터 없는 고층일수록 인건비가 올라갈 수 있어요.",
+      step_no: 1,
+      sort_order: maxSort + 10,
+      is_required: "N",
+      exposure_scope: "RESIDENTIAL"
+    },
+    {
+      question_code: "R014_BALCONY",
+      question_type: "SINGLE_SELECT",
+      title: "발코니 확장을 원하시나요?",
+      description: "발코니 벽을 허물고 실내 공간으로 합치는 공사입니다.",
+      helper_text: "확장 시 단열·창호 교체도 함께 이루어져요.",
+      step_no: 1,
+      sort_order: maxSort + 20,
+      is_required: "N",
+      exposure_scope: "RESIDENTIAL"
+    },
+    {
+      question_code: "R004_MOVE_IN_DATE",
+      question_type: "SINGLE_SELECT",
+      title: "입주 예정일이 언제인가요?",
+      description: "공사 일정과 자재 수급 계획에 참고됩니다.",
+      helper_text: "미정이셔도 괜찮아요. 대략적인 시기만 알려주세요.",
+      step_no: 1,
+      sort_order: maxSort + 30,
+      is_required: "N",
+      exposure_scope: "ALL"
+    }
+  ];
+
+  var addedQuestions = [];
+  newQuestions.forEach(function(q) {
+    if (existingCodes[q.question_code]) return; // 이미 있으면 스킵
+    var qId = "mig_" + q.question_code.toLowerCase() + "_v2";
+    var newRow = [];
+    qHeaders.forEach(function(h) {
+      var key = String(h || "").trim();
+      if (key === "question_id") newRow.push(qId);
+      else if (key === "is_active") newRow.push("Y");
+      else if (key === "created_at") newRow.push(new Date().toISOString());
+      else newRow.push(q[key] !== undefined ? q[key] : "");
+    });
+    qSheet.appendRow(newRow);
+    addedQuestions.push(q.question_code);
+    Utilities.sleep(500);
+  });
+
+  // P2-2: 새 질문 옵션 추가
+  var newOptions = [
+    { question_code: "R003_FLOOR_INFO", options: [
+      { option_code: "LOW_ELEV", option_label: "저층 (1~5층) + 엘리베이터 있음", sort_order: 10 },
+      { option_code: "LOW_NOELEV", option_label: "저층 (1~3층) + 엘리베이터 없음", sort_order: 20 },
+      { option_code: "HIGH_ELEV", option_label: "고층 (6층 이상) + 엘리베이터 있음", sort_order: 30 },
+      { option_code: "HIGH_NOELEV", option_label: "고층 (6층 이상) + 엘리베이터 없음", sort_order: 40 }
+    ]},
+    { question_code: "R014_BALCONY", options: [
+      { option_code: "YES", option_label: "예, 확장 원합니다", sort_order: 10 },
+      { option_code: "NO", option_label: "아니요, 현재대로 유지", sort_order: 20 },
+      { option_code: "UNDECIDED", option_label: "미정 (현장 확인 후 결정)", sort_order: 30 }
+    ]},
+    { question_code: "R004_MOVE_IN_DATE", options: [
+      { option_code: "WITHIN_1M", option_label: "1개월 이내", sort_order: 10 },
+      { option_code: "1_3M", option_label: "1~3개월", sort_order: 20 },
+      { option_code: "3_6M", option_label: "3~6개월", sort_order: 30 },
+      { option_code: "OVER_6M", option_label: "6개월 이상", sort_order: 40 },
+      { option_code: "UNDECIDED", option_label: "미정", sort_order: 50 }
+    ]}
+  ];
+
+  var addedOptions = [];
+  newOptions.forEach(function(grp) {
+    var qId = "mig_" + grp.question_code.toLowerCase() + "_v2";
+    grp.options.forEach(function(opt) {
+      var key = qId + ":" + opt.option_code;
+      if (existingOptionKeys[key]) return;
+      var oRow = [];
+      oHeaders.forEach(function(h) {
+        var hh = String(h || "").trim();
+        if (hh === "question_id") oRow.push(qId);
+        else if (hh === "option_code") oRow.push(opt.option_code);
+        else if (hh === "option_label") oRow.push(opt.option_label);
+        else if (hh === "sort_order") oRow.push(opt.sort_order);
+        else if (hh === "is_active") oRow.push("Y");
+        else oRow.push(opt[hh] !== undefined ? opt[hh] : "");
+      });
+      oSheet.appendRow(oRow);
+      addedOptions.push(grp.question_code + ":" + opt.option_code);
+      Utilities.sleep(300);
+    });
+  });
+
+  // 캐시 무효화
+  try {
+    var cache = CacheService.getScriptCache();
+    var surveyKeys = [];
+    for (var ki = 0; ki < 50; ki++) surveyKeys.push(SURVEY_CONFIG_CACHE_PREFIX_ + "_" + ki);
+    cache.removeAll(surveyKeys);
+  } catch (e) {}
+
+  return { patched: patchedCodes, added_questions: addedQuestions, added_options: addedOptions };
 }
 
 function runScheduledSync_() {
