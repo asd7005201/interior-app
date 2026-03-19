@@ -56,6 +56,8 @@
   var CACHED_CFG=readCachedConfig_();
   var CFG=CACHED_CFG||BOOTSTRAP_CFG||null, STATE={screen:'landing',step:0,answers:{},files:[]}, STEPS=[], $app=document.getElementById('app');
   var PREV_STEP_COUNT=0; // track step count changes for reset
+  var FUNNEL_SESSION_ID='fs_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+  var FUNNEL_MAX_STEP=0, FUNNEL_STEP_TIMES=[], FUNNEL_STARTED=0;
   if(!CACHED_CFG&&BOOTSTRAP_CFG) writeCachedConfig_(BOOTSTRAP_CFG);
 
   function readCachedConfig_(){
@@ -411,7 +413,7 @@
 
   // ---- ACTIONS ----
   window.PQ={
-    start:function(){if(!CFG)return;STATE.screen='survey';STATE.step=0;STATE.answers={};PREV_STEP_COUNT=0;render();},
+    start:function(){if(!CFG)return;STATE.screen='survey';STATE.step=0;STATE.answers={};PREV_STEP_COUNT=0;FUNNEL_STARTED=Date.now();FUNNEL_MAX_STEP=0;FUNNEL_STEP_TIMES=[];render();},
     sel:function(c,v){
       STATE.answers[c]=v;
       if(c.indexOf('Q000_PRESET')===0&&c!=='Q000_PRESET_TONE') applyBundle(v);
@@ -453,7 +455,7 @@
       render();
     },
     rmF:function(i){STATE.files.splice(i,1);render();},
-    next:function(){if(STATE.step<STEPS.length-1){STATE.step++;render();window.scrollTo(0,0);}},
+    next:function(){if(STATE.step<STEPS.length-1){trackStep_(STATE.step);STATE.step++;if(STATE.step>FUNNEL_MAX_STEP)FUNNEL_MAX_STEP=STATE.step;render();window.scrollTo(0,0);}},
     prev:function(){
       if(STATE.step>0){STATE.step--;render();window.scrollTo(0,0);}
       else{var pt=STATE.answers.Q000_PROJECT_TYPE,fm=STATE.answers.Q000_FLOW_MODE;
@@ -467,6 +469,7 @@
       google.script.run
         .withSuccessHandler(function(r){
           var url=APP_URL+'?page=result&id='+encodeURIComponent(r.request_id)+'&token='+encodeURIComponent(r.share_token);
+          trackStep_(STATE.step);saveFunnelData_(true);
           storeResultBootstrap_(r,a,cf);
           $app.innerHTML='<div class="container" style="padding-top:48px;text-align:center"><div class="fade-in">'
             +'<div style="width:64px;height:64px;border-radius:50%;background:var(--color-success-soft);display:flex;align-items:center;justify-content:center;margin:0 auto 20px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
@@ -517,6 +520,35 @@
   }
   function hideLoading(){var e=document.getElementById('gl');if(e)e.remove();}
   function showError(m){$app.innerHTML='<div class="container" style="padding-top:60px;text-align:center"><h2>오류</h2><p style="color:var(--color-text-sub);margin:12px 0">'+esc(m)+'</p><button class="btn btn-secondary" onclick="location.reload()">다시 시도</button></div>';}
+
+  // ── 설문 이탈 트래킹 ──
+  function trackStep_(idx){
+    var now=Date.now();
+    var sd=STEPS[idx];
+    FUNNEL_STEP_TIMES.push({step:idx,title:sd?sd.title:'',ts:now,dur:FUNNEL_STARTED?(now-FUNNEL_STARTED):0});
+    FUNNEL_STARTED=now;
+  }
+  function saveFunnelData_(completed){
+    try{
+      var data={
+        session_id:FUNNEL_SESSION_ID,
+        max_step:FUNNEL_MAX_STEP,
+        total_steps:STEPS.length,
+        completed:!!completed,
+        project_type:STATE.answers.Q000_PROJECT_TYPE||'',
+        steps:FUNNEL_STEP_TIMES.slice(0,30),
+        abandoned_at:completed?'':((STEPS[STATE.step]||{}).title||'step_'+STATE.step)
+      };
+      google.script.run.trackSurveyFunnel(data);
+    }catch(e){}
+  }
+  // 페이지 이탈 시 트래킹 전송
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='hidden'&&STATE.screen==='survey'&&FUNNEL_MAX_STEP>0){
+      saveFunnelData_(false);
+    }
+  });
+
   init();
 })();
 </script>

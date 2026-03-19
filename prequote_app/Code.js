@@ -617,6 +617,7 @@ function handleApiAction_(action, params, method) {
     if (action === "adminRunMigration") return jsonResponse_({ ok: true, data: adminRunMigration(params.credential, params.migrationId) });
     if (action === "adminSetupNotificationsTrigger") return jsonResponse_({ ok: true, data: adminSetupNotificationsTrigger(params.credential) });
     if (action === "adminExportStaticData") return jsonResponse_({ ok: true, data: adminExportStaticData(params.credential) });
+    if (action === "adminGetFunnelStats") return jsonResponse_({ ok: true, data: adminGetFunnelStats(params.credential) });
 
     return jsonResponse_({ ok: false, error: "Unknown action: " + action });
   } catch (err) {
@@ -7153,6 +7154,80 @@ function adminExportStaticData(credential) {
     Utilities.sleep(200);
   });
   return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 설문 퍼널 통계 (어드민 API)
+// ─────────────────────────────────────────────────────────────
+
+function adminGetFunnelStats(credential) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  var ss = SpreadsheetApp.openById(getSpreadsheetId_());
+  var sh = ss.getSheetByName("SurveyFunnel");
+  if (!sh || sh.getLastRow() < 2) return { total: 0, completed: 0, abandoned: 0, steps: [] };
+
+  var data = sh.getDataRange().getValues();
+  var headers = data[0];
+  var ci = function(name) { return headers.indexOf(name); };
+  var total = 0, completed = 0, stepCounts = {};
+
+  for (var i = 1; i < data.length; i++) {
+    total++;
+    if (String(data[i][ci("completed")] || "").toUpperCase() === "Y") completed++;
+    var maxStep = Number(data[i][ci("max_step")] || 0);
+    var totalSteps = Number(data[i][ci("total_steps")] || 0);
+    for (var s = 0; s <= maxStep && s < totalSteps; s++) {
+      stepCounts[s] = (stepCounts[s] || 0) + 1;
+    }
+  }
+
+  var stepsArr = [];
+  var maxKey = Object.keys(stepCounts).map(Number).sort(function(a, b) { return a - b; });
+  for (var j = 0; j < maxKey.length; j++) {
+    stepsArr.push({ step: maxKey[j], count: stepCounts[maxKey[j]], pct: Math.round(stepCounts[maxKey[j]] / total * 100) });
+  }
+
+  return { total: total, completed: completed, abandoned: total - completed, rate: total ? Math.round(completed / total * 100) : 0, steps: stepsArr };
+}
+
+// ─────────────────────────────────────────────────────────────
+// 설문 이탈 트래킹 (퍼널 분석)
+// google.script.run.trackSurveyFunnel(data) 로 호출
+// ─────────────────────────────────────────────────────────────
+
+function trackSurveyFunnel(data) {
+  try {
+    ensureSpreadsheetId_();
+    var ss = SpreadsheetApp.openById(getSpreadsheetId_());
+    var shName = "SurveyFunnel";
+    var sh = ss.getSheetByName(shName);
+    if (!sh) {
+      sh = ss.insertSheet(shName);
+      sh.getRange(1, 1, 1, 9).setValues([[
+        "session_id", "tracked_at", "project_type", "max_step", "total_steps",
+        "completed", "abandoned_at", "steps_json", "duration_sec"
+      ]]);
+    }
+
+    var steps = data.steps || [];
+    var totalDur = 0;
+    for (var i = 0; i < steps.length; i++) totalDur += Number(steps[i].dur || 0);
+
+    sh.appendRow([
+      String(data.session_id || ""),
+      new Date().toISOString(),
+      String(data.project_type || ""),
+      Number(data.max_step || 0),
+      Number(data.total_steps || 0),
+      data.completed ? "Y" : "N",
+      String(data.abandoned_at || ""),
+      JSON.stringify(steps.slice(0, 20)),
+      Math.round(totalDur / 1000)
+    ]);
+  } catch (e) {
+    Logger.log("trackSurveyFunnel error: " + e);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

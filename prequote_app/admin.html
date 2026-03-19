@@ -455,6 +455,17 @@
               <div style="margin-top:8px;font:var(--f-xs);color:var(--color-text-sub)">층수/발코니/입주 질문 + 문구 개선</div>
             </div>
 
+            <div style="background:rgba(184,150,59,.06);border:1px solid rgba(184,150,59,.16);border-radius:18px;padding:22px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                <div>
+                  <div style="font:700 16px/1.2 var(--ff)">설문 이탈 분석</div>
+                  <div style="font:var(--f-sm);color:var(--color-text-sub);margin-top:2px">어디서 고객이 이탈하는지 확인</div>
+                </div>
+                <button id="btnLoadFunnel" class="btn btn-secondary btn-sm">불러오기</button>
+              </div>
+              <div id="funnelAnalytics" style="font:var(--f-sm);color:var(--color-text-sub)">버튼을 눌러 데이터를 불러오세요.</div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -2153,6 +2164,7 @@
     $("btnSetupTrigger").addEventListener("click", function(){ setupNotificationsTrigger(this).catch(handleError); });
     // ── P2-2: 마이그레이션 v2 ──
     $("btnMigrateV2").addEventListener("click", function(){ runMigrationV2(this).catch(handleError); });
+    $("btnLoadFunnel").addEventListener("click", function(){ loadFunnelStats(this).catch(handleError); });
   }
 
   // ── Slack 설정 관련 함수 ──
@@ -2224,6 +2236,34 @@
     } else {
       $("migrateStatus").textContent = "❌ 실패";
     }
+  }
+
+  // ── 설문 퍼널 분석 ──
+  async function loadFunnelStats(btn) {
+    $("funnelAnalytics").textContent = "불러오는 중...";
+    var res = await callServer("adminGetFunnelStats", [state.credential], btn, { busyText: "분석 중..." });
+    if (!res || !res.total) {
+      $("funnelAnalytics").textContent = "데이터가 아직 없습니다. 설문 진행 후 수집됩니다.";
+      return;
+    }
+    var h = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">';
+    h += '<div style="text-align:center"><div style="font:700 22px/1.1 var(--ff)">' + res.total + '</div><div style="font:var(--f-xs);color:var(--color-text-sub)">전체 시작</div></div>';
+    h += '<div style="text-align:center"><div style="font:700 22px/1.1 var(--ff);color:var(--color-primary)">' + res.completed + '</div><div style="font:var(--f-xs);color:var(--color-text-sub)">완료</div></div>';
+    h += '<div style="text-align:center"><div style="font:700 22px/1.1 var(--ff);color:var(--color-danger)">' + res.abandoned + '</div><div style="font:var(--f-xs);color:var(--color-text-sub)">이탈</div></div>';
+    h += '</div>';
+    h += '<div style="font:var(--f-sm);font-weight:600;margin-bottom:8px">완료율: ' + res.rate + '%</div>';
+    if (res.steps && res.steps.length) {
+      h += '<div style="display:grid;gap:4px">';
+      res.steps.forEach(function(s) {
+        h += '<div style="display:flex;align-items:center;gap:8px;font:var(--f-xs)">';
+        h += '<span style="width:50px;text-align:right;color:var(--color-text-sub)">Step ' + s.step + '</span>';
+        h += '<div style="flex:1;height:8px;background:var(--color-warm-150);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + s.pct + '%;background:var(--color-primary);border-radius:4px"></div></div>';
+        h += '<span style="width:55px;color:var(--color-text-sub)">' + s.count + '명 (' + s.pct + '%)</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+    $("funnelAnalytics").innerHTML = h;
   }
 
   // 설정 탭 진입 시 Slack 상태 자동 로드
