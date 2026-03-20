@@ -2,6 +2,27 @@ var CORE_SCHEMA_VERSION_ = "2026-03-09-v3";
 var CORE_SCHEMA_FLAG_KEY_ = "CORE_SCHEMA_VERSION";
 
 var __SCHEMA_READY_THIS_EXEC_ = false;
+var __SCRIPT_PROPS_MEMO_ = null;
+
+/**
+ * Cached ScriptProperties accessor — reduces PropertiesService calls to max 1 per execution.
+ * Write-through: setProperty calls also update the memo.
+ */
+function getScriptProps_() {
+  if (__SCRIPT_PROPS_MEMO_) return __SCRIPT_PROPS_MEMO_;
+  __SCRIPT_PROPS_MEMO_ = PropertiesService.getScriptProperties().getProperties();
+  return __SCRIPT_PROPS_MEMO_;
+}
+
+function getScriptProp_(key) {
+  return String((getScriptProps_()[key]) || "").trim();
+}
+
+function setScriptProp_(key, value) {
+  var val = String(value || "");
+  PropertiesService.getScriptProperties().setProperty(key, val);
+  if (__SCRIPT_PROPS_MEMO_) __SCRIPT_PROPS_MEMO_[key] = val;
+}
 var __HEADERS_CACHE_ = Object.create(null);
 var __COLMAP_CACHE_ = Object.create(null);
 var __QUOTE_ROWNO_CACHE_ = null;
@@ -50,7 +71,7 @@ var STRICT_ADMIN_GET_AUTH_ = false;
 var BUILD_TAG_ = "2026-03-03T09:25:00Z";
 
 var DEFAULT_PUBLIC_EXEC_BASE_URL_ = "";
-var CUSTOMER_SHARE_ENABLED_ = false;
+var CUSTOMER_SHARE_ENABLED_ = true;
 var ITEMS_CANONICAL_HEADERS_ = [
   "quote_id", "item_id", "seq",
   "group_id", "group_label", "group_code", "group_order", "item_order",
@@ -438,8 +459,7 @@ function getAppUrl_() {
     var cached = String(cache.get(cacheKey) || "").trim();
     if (cached) return cached;
 
-    var props = PropertiesService.getScriptProperties();
-    var propUrl = normalizeWebAppBaseUrl_(props.getProperty("WEBAPP_URL_CACHE"));
+    var propUrl = normalizeWebAppBaseUrl_(getScriptProp_("WEBAPP_URL_CACHE"));
     if (propUrl) {
       cache.put(cacheKey, propUrl, 21600);
       return propUrl;
@@ -449,11 +469,11 @@ function getAppUrl_() {
     if (runtimeUrl) {
       var forLinks = /\/dev$/i.test(runtimeUrl) ? runtimeUrl.replace(/\/dev$/i, "/exec") : runtimeUrl;
       cache.put(cacheKey, forLinks, 21600);
-      try { props.setProperty("WEBAPP_URL_CACHE", forLinks); } catch (e1) {}
+      try { setScriptProp_("WEBAPP_URL_CACHE", forLinks); } catch (e1) {}
       return forLinks;
     }
 
-    var manualUrl = normalizeWebAppBaseUrl_(props.getProperty("BASE_WEBAPP_URL"));
+    var manualUrl = normalizeWebAppBaseUrl_(getScriptProp_("BASE_WEBAPP_URL"));
     if (manualUrl) return manualUrl;
   } catch (e) {}
   return normalizeWebAppBaseUrl_(DEFAULT_PUBLIC_EXEC_BASE_URL_) || "";
@@ -727,8 +747,7 @@ function getSlackUsersMap_() {
 }
 
 function getSlackWebhooks_() {
-  var props = PropertiesService.getScriptProperties();
-  var raw = props.getProperty("SLACK_WEBHOOK_URL");
+  var raw = getScriptProp_("SLACK_WEBHOOK_URL");
 
   var rawText = String(raw || "").trim();
   var memo = "";
@@ -805,7 +824,7 @@ function resolveSlackMention_(assigneeName) {
   var usersMap = getSlackUsersMap_();
   var memberId = normalizeSlackMemberId_(usersMap[normalized]);
   if (!memberId) {
-    var rawFallback = PropertiesService.getScriptProperties().getProperty("SLACK_MEMBER_MAP");
+    var rawFallback = getScriptProp_("SLACK_MEMBER_MAP");
     var fallbackMap = parseJsonSafe_(rawFallback, {});
     memberId = normalizeSlackMemberId_(fallbackMap && fallbackMap[normalized]);
     if (!memberId && fallbackMap && typeof fallbackMap === "object") {
@@ -1651,8 +1670,7 @@ function debugSlackWebhookConfig(adminPassword) {
     throw new Error("Admin password required. In editor, run debugSlackWebhookConfig_ADMIN().");
   }
   assertAdminCredential_(adminPassword);
-  var props = PropertiesService.getScriptProperties();
-  var raw = String(props.getProperty("SLACK_WEBHOOK_URL") || "").trim();
+  var raw = getScriptProp_("SLACK_WEBHOOK_URL");
   var hooks = getSlackWebhooks_();
   return {
     ok: true,
@@ -1671,16 +1689,15 @@ function bootstrapConfigOnce_(options) {
 
   var opts = options || {};
   var force = !!opts.force;
-  var props = PropertiesService.getScriptProperties();
 
-  var webhookRaw = props.getProperty("SLACK_WEBHOOK_URL");
-  var memberRaw = props.getProperty("SLACK_MEMBER_MAP");
+  var webhookRaw = getScriptProp_("SLACK_WEBHOOK_URL");
+  var memberRaw = getScriptProp_("SLACK_MEMBER_MAP");
 
   var webhookSet = false;
   var memberSet = false;
 
   if (force || !String(webhookRaw || "").trim()) {
-    props.setProperty("SLACK_WEBHOOK_URL", JSON.stringify({
+    setScriptProp_("SLACK_WEBHOOK_URL", JSON.stringify({
       memo: "",
       approve: ""
     }));
@@ -1688,7 +1705,7 @@ function bootstrapConfigOnce_(options) {
   }
 
   if (force || !String(memberRaw || "").trim()) {
-    props.setProperty("SLACK_MEMBER_MAP", JSON.stringify({
+    setScriptProp_("SLACK_MEMBER_MAP", JSON.stringify({
       "default_assignee": "U0AG70EJ492"
     }));
     memberSet = true;
@@ -2336,17 +2353,16 @@ function templateCellToBool_(raw) {
 function getTemplateListVersion_() {
   // Cache key contract:
   // - TEMPLATE_LIST_VER: invalidates template snapshot/list/category caches.
-  var props = PropertiesService.getScriptProperties();
-  var v = String(props.getProperty(TEMPLATE_LIST_VERSION_KEY_) || "").trim();
+  var v = getScriptProp_(TEMPLATE_LIST_VERSION_KEY_);
   if (!v) {
     v = "1";
-    props.setProperty(TEMPLATE_LIST_VERSION_KEY_, v);
+    setScriptProp_(TEMPLATE_LIST_VERSION_KEY_, v);
   }
   return v;
 }
 
 function bumpTemplateListVersion_() {
-  PropertiesService.getScriptProperties().setProperty(TEMPLATE_LIST_VERSION_KEY_, String(Date.now()));
+  setScriptProp_(TEMPLATE_LIST_VERSION_KEY_, String(Date.now()));
   __TEMPLATE_CATALOG_SNAPSHOT_MEM_VER_ = "";
   __TEMPLATE_CATALOG_SNAPSHOT_MEM_ = null;
   __TEMPLATE_CATALOG_CORE_MEM_VER_ = "";
@@ -5840,23 +5856,21 @@ function deleteMaterialGroupAdmin(groupKey, adminPassword) {
 }
 
 function getMaterialTagListVersion_() {
-  var props = PropertiesService.getScriptProperties();
-  var v = String(props.getProperty(MATERIAL_TAG_LIST_VERSION_KEY_) || "").trim();
+  var v = getScriptProp_(MATERIAL_TAG_LIST_VERSION_KEY_);
   if (!v) {
     v = "1";
-    props.setProperty(MATERIAL_TAG_LIST_VERSION_KEY_, v);
+    setScriptProp_(MATERIAL_TAG_LIST_VERSION_KEY_, v);
   }
   return v;
 }
 
 function bumpMaterialTagListVersion_() {
-  PropertiesService.getScriptProperties().setProperty(MATERIAL_TAG_LIST_VERSION_KEY_, String(Date.now()));
+  setScriptProp_(MATERIAL_TAG_LIST_VERSION_KEY_, String(Date.now()));
 }
 
 function getPrequoteSettingsFromSs_(ss) {
   var spreadsheet = ss || getSpreadsheet_();
   var map = readSettingsMap_(spreadsheet);
-  var props = PropertiesService.getScriptProperties();
   return {
     expose_materials_to_prequote: ynToBool_(map.expose_materials_to_prequote, true),
     expose_templates_to_prequote: ynToBool_(map.expose_templates_to_prequote, true),
@@ -5864,7 +5878,7 @@ function getPrequoteSettingsFromSs_(ss) {
     default_template_limit: Math.min(Math.max(Number(map.prequote_default_template_limit || 12), 1), 100),
     sync_enabled: ynToBool_(map.prequote_sync_enabled, false),
     sync_note: String(map.prequote_sync_note || "").trim(),
-    shared_api_key_configured: !!String(props.getProperty("PREQUOTE_SHARED_API_KEY") || "").trim()
+    shared_api_key_configured: !!getScriptProp_("PREQUOTE_SHARED_API_KEY")
   };
 }
 
@@ -8882,7 +8896,6 @@ function findPhotos_(quoteId) {
 function getOrCreateUploadRootFolder_() {
   if (__UPLOAD_ROOT_FOLDER_CACHE_) return __UPLOAD_ROOT_FOLDER_CACHE_;
 
-  var props = PropertiesService.getScriptProperties();
   var key = "UPLOAD_ROOT_FOLDER_ID";
   var s = getSettings_();
   var configured = String(s.upload_folder_id || "").trim();
@@ -8890,12 +8903,12 @@ function getOrCreateUploadRootFolder_() {
   if (configured) {
     try {
       __UPLOAD_ROOT_FOLDER_CACHE_ = DriveApp.getFolderById(configured);
-      props.setProperty(key, __UPLOAD_ROOT_FOLDER_CACHE_.getId());
+      setScriptProp_(key, __UPLOAD_ROOT_FOLDER_CACHE_.getId());
       return __UPLOAD_ROOT_FOLDER_CACHE_;
     } catch (e) {}
   }
 
-  var saved = props.getProperty(key);
+  var saved = getScriptProp_(key);
   if (saved) {
     try {
       __UPLOAD_ROOT_FOLDER_CACHE_ = DriveApp.getFolderById(saved);
@@ -8904,7 +8917,7 @@ function getOrCreateUploadRootFolder_() {
   }
 
   __UPLOAD_ROOT_FOLDER_CACHE_ = DriveApp.createFolder("quoteapp_uploads");
-  props.setProperty(key, __UPLOAD_ROOT_FOLDER_CACHE_.getId());
+  setScriptProp_(key, __UPLOAD_ROOT_FOLDER_CACHE_.getId());
   return __UPLOAD_ROOT_FOLDER_CACHE_;
 }
 
@@ -8954,8 +8967,7 @@ function tryResizeImageBytes_(bytes, mimeType, maxWidth) {
 function ensureCoreSchemaReady_() {
   if (__SCHEMA_READY_THIS_EXEC_) return;
 
-  var props = PropertiesService.getScriptProperties();
-  var ver = props.getProperty(CORE_SCHEMA_FLAG_KEY_);
+  var ver = getScriptProp_(CORE_SCHEMA_FLAG_KEY_);
   if (ver === CORE_SCHEMA_VERSION_) {
     __SCHEMA_READY_THIS_EXEC_ = true;
     return;
@@ -8968,11 +8980,12 @@ function forceEnsureCoreSchema_() {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
+    // Re-read from PropertiesService directly under lock (not memo) to avoid race conditions
     var props = PropertiesService.getScriptProperties();
     var current = props.getProperty(CORE_SCHEMA_FLAG_KEY_);
     if (current !== CORE_SCHEMA_VERSION_) {
       ensureCoreSchema_();
-      props.setProperty(CORE_SCHEMA_FLAG_KEY_, CORE_SCHEMA_VERSION_);
+      setScriptProp_(CORE_SCHEMA_FLAG_KEY_, CORE_SCHEMA_VERSION_);
     }
     __SCHEMA_READY_THIS_EXEC_ = true;
   } finally {
@@ -9512,17 +9525,16 @@ function getOrBuildCachedJsonChunkedWithLock_(cacheKey, ttlSec, builderFn, optio
 function getMaterialSearchVersion_() {
   // Cache key contract:
   // - MATERIAL_SEARCH_VER: invalidates material search query cache + image allowlist column-set cache.
-  var props = PropertiesService.getScriptProperties();
-  var v = String(props.getProperty("MATERIAL_SEARCH_VER") || "").trim();
+  var v = getScriptProp_("MATERIAL_SEARCH_VER");
   if (!v) {
     v = "1";
-    props.setProperty("MATERIAL_SEARCH_VER", v);
+    setScriptProp_("MATERIAL_SEARCH_VER", v);
   }
   return v;
 }
 
 function bumpMaterialSearchVersion_() {
-  PropertiesService.getScriptProperties().setProperty("MATERIAL_SEARCH_VER", String(Date.now()));
+  setScriptProp_("MATERIAL_SEARCH_VER", String(Date.now()));
   __MATERIAL_INDEX_MEM_VER_ = "";
   __MATERIAL_INDEX_MEM_MAP_ = null;
   __SHEET_COLUMN_SET_MEM_ = Object.create(null);
@@ -9531,33 +9543,37 @@ function bumpMaterialSearchVersion_() {
 function getMaterialGroupListVersion_() {
   // Cache key contract:
   // - MATERIAL_GROUP_LIST_VER: invalidates material-group filter/list caches.
-  var props = PropertiesService.getScriptProperties();
-  var v = String(props.getProperty(MATERIAL_GROUP_LIST_VERSION_KEY_) || "").trim();
+  var v = getScriptProp_(MATERIAL_GROUP_LIST_VERSION_KEY_);
   if (!v) {
     v = "1";
-    props.setProperty(MATERIAL_GROUP_LIST_VERSION_KEY_, v);
+    setScriptProp_(MATERIAL_GROUP_LIST_VERSION_KEY_, v);
   }
   return v;
 }
 
 function bumpMaterialGroupListVersion_() {
-  PropertiesService.getScriptProperties().setProperty(MATERIAL_GROUP_LIST_VERSION_KEY_, String(Date.now()));
+  setScriptProp_(MATERIAL_GROUP_LIST_VERSION_KEY_, String(Date.now()));
 }
+
+var __QUOTE_LIST_VERSION_MEMO_ = "";
 
 function getQuoteListVersion_() {
   // Cache key contract:
   // - QUOTE_LIST_VER: invalidates dashboard/list core caches + item/photo reference column-set cache.
-  var props = PropertiesService.getScriptProperties();
-  var v = String(props.getProperty("QUOTE_LIST_VER") || "").trim();
+  if (__QUOTE_LIST_VERSION_MEMO_) return __QUOTE_LIST_VERSION_MEMO_;
+  var v = getScriptProp_("QUOTE_LIST_VER");
   if (!v) {
     v = "1";
-    props.setProperty("QUOTE_LIST_VER", v);
+    setScriptProp_("QUOTE_LIST_VER", v);
   }
+  __QUOTE_LIST_VERSION_MEMO_ = v;
   return v;
 }
 
 function bumpQuoteListVersion_() {
-  PropertiesService.getScriptProperties().setProperty("QUOTE_LIST_VER", String(Date.now()));
+  var newVer = String(Date.now());
+  setScriptProp_("QUOTE_LIST_VER", newVer);
+  __QUOTE_LIST_VERSION_MEMO_ = newVer;
   __QUOTE_LIST_CORE_MEM_VER_ = "";
   __QUOTE_LIST_CORE_MEM_ = null;
   __SHEET_COLUMN_SET_MEM_ = Object.create(null);

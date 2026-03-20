@@ -30,6 +30,9 @@ var __ROW_OBJECT_MEMO_ = Object.create(null);
 var __COLUMN_MATCH_MEMO_ = Object.create(null);
 var __REQUEST_DUPLICATE_LOOKUP_MEMO_ = Object.create(null);
 var __ENSURED_SHEET_SCHEMA_MEMO_ = Object.create(null);
+var __OPERATIONAL_SCHEMA_ENSURED_ = false;
+var __SURVEY_OPTION_LABEL_INDEX_MEMO_ = null;
+var __SURVEY_QUESTION_META_MAP_MEMO_ = null;
 var STATIC_ROWS_CACHE_PREFIX_ = "PQ_STATIC_ROWS_V1";
 var STATIC_ROWS_CACHE_TTL_SEC_ = 600;
 var REQUEST_ROW_INDEX_SHEET_ = "RequestRowIndex";
@@ -1248,7 +1251,49 @@ function ensureSheetWithHeaders_(sheetName, headers, overrideId) {
   return getSheet_(sheetName, ssId);
 }
 
+function prefetchSchemaCacheKeys_(sheetHeaderPairs) {
+  var keysToCheck = [];
+  var ssId;
+  try { ssId = getSpreadsheetId_(); } catch (e) { return; }
+  for (var i = 0; i < sheetHeaderPairs.length; i++) {
+    var pair = sheetHeaderPairs[i];
+    var key = sheetSchemaCacheKey_(pair[0], pair[1], ssId);
+    if (!__ENSURED_SHEET_SCHEMA_MEMO_[key]) keysToCheck.push(key);
+  }
+  if (!keysToCheck.length) return;
+  try {
+    var cached = CacheService.getScriptCache().getAll(keysToCheck);
+    for (var k in cached) {
+      if (cached[k]) __ENSURED_SHEET_SCHEMA_MEMO_[k] = true;
+    }
+  } catch (e) {}
+}
+
 function ensurePrequoteOperationalSchema_() {
+  if (__OPERATIONAL_SCHEMA_ENSURED_) return;
+  __OPERATIONAL_SCHEMA_ENSURED_ = true;
+
+  // Batch-prefetch all schema cache keys in a single CacheService call
+  var pairs = [
+    ["Requests", REQUEST_REQUIRED_COLUMNS_],
+    ["RequestRecommendations", REQUEST_RECOMMENDATION_HEADERS_],
+    ["RequestTimeline", REQUEST_TIMELINE_REQUIRED_COLUMNS_],
+    ["RequestFiles", REQUEST_FILE_REQUIRED_COLUMNS_],
+    [REQUEST_ADMIN_REVIEW_SHEET_, REQUEST_ADMIN_REVIEW_HEADERS_],
+    ["RequestAssignments", REQUEST_ASSIGNMENT_HEADERS_],
+    ["RequestTasks", REQUEST_TASK_HEADERS_],
+    ["RequestChecklistTemplates", REQUEST_CHECKLIST_TEMPLATE_HEADERS_],
+    ["RequestChecklistItems", REQUEST_CHECKLIST_ITEM_HEADERS_],
+    ["RequestNotificationLog", REQUEST_NOTIFICATION_LOG_HEADERS_],
+    ["RequestQuoteDraftLinks", REQUEST_QUOTE_DRAFT_LINK_HEADERS_],
+    ["DashboardSavedViews", DASHBOARD_SAVED_VIEW_HEADERS_],
+    [REQUEST_ROW_INDEX_SHEET_, REQUEST_ROW_INDEX_HEADERS_],
+    [SYNC_STATE_SHEET_, SYNC_STATE_HEADERS_],
+    [PERF_METRICS_SHEET_, PERF_METRICS_HEADERS_],
+    [REQUEST_POSTPROCESS_QUEUE_SHEET_, REQUEST_POSTPROCESS_QUEUE_HEADERS_]
+  ];
+  prefetchSchemaCacheKeys_(pairs);
+
   ensureSheetWithHeaders_("Requests", REQUEST_REQUIRED_COLUMNS_);
   ensureSheetWithHeaders_("RequestRecommendations", REQUEST_RECOMMENDATION_HEADERS_);
   ensureSheetWithHeaders_("RequestTimeline", REQUEST_TIMELINE_REQUIRED_COLUMNS_);
@@ -1438,14 +1483,27 @@ function requestRowIndexRowObject_(record) {
   };
 }
 
+function requestRowIndexServiceCacheKey_(requestId) {
+  return "PQ_RI_V1_" + String(requestId || "").trim();
+}
+
 function readRequestRowIndexRecord_(requestId) {
   var rid = String(requestId || "").trim();
   if (!rid || !requestRowIndexEnabled_()) return null;
   var cached = getCachedRequestRowIndexRecord_(rid);
   if (cached) return cached;
+  // Try CacheService before hitting the sheet
+  var serviceKey = requestRowIndexServiceCacheKey_(rid);
+  var serviceCached = cacheJsonGet_(serviceKey);
+  if (serviceCached && serviceCached.request_id === rid) {
+    return cacheRequestRowIndexRecord_(serviceCached);
+  }
   var found = findRowByCol_(REQUEST_ROW_INDEX_SHEET_, "request_id", rid);
   if (!found) return null;
-  return cacheRequestRowIndexRecord_(requestRowIndexRecordFromRow_(found.data, found.rowNo));
+  var record = cacheRequestRowIndexRecord_(requestRowIndexRecordFromRow_(found.data, found.rowNo));
+  // Persist to CacheService for cross-execution use (5 min TTL)
+  cacheJsonPut_(serviceKey, record, 300);
+  return record;
 }
 
 function upsertRequestRowIndexRecord_(requestId, patch) {
@@ -1475,7 +1533,10 @@ function upsertRequestRowIndexRecord_(requestId, patch) {
   } else {
     next._index_row_no = appendRow_(REQUEST_ROW_INDEX_SHEET_, rowObj);
   }
-  return cacheRequestRowIndexRecord_(next);
+  var result = cacheRequestRowIndexRecord_(next);
+  // Persist to CacheService for cross-execution use (5 min TTL)
+  cacheJsonPut_(requestRowIndexServiceCacheKey_(rid), result, 300);
+  return result;
 }
 
 function getRequestRowNosFromIndex_(record, sheetName) {
@@ -3855,6 +3916,7 @@ function getAnswerGroupOrder_(groupKey) {
 }
 
 function getSurveyQuestionMetaMap_() {
+  if (__SURVEY_QUESTION_META_MAP_MEMO_) return __SURVEY_QUESTION_META_MAP_MEMO_;
   var rows = readStaticRowsCached_("SurveyQuestions").filter(function(q) {
     return ynToBool_(q.is_active, true);
   });
@@ -3877,10 +3939,12 @@ function getSurveyQuestionMetaMap_() {
     out[code] = meta;
     out[meta.question_id] = meta;
   }
+  __SURVEY_QUESTION_META_MAP_MEMO_ = out;
   return out;
 }
 
 function getSurveyOptionLabelIndex_() {
+  if (__SURVEY_OPTION_LABEL_INDEX_MEMO_) return __SURVEY_OPTION_LABEL_INDEX_MEMO_;
   var rows = readStaticRowsCached_("SurveyOptions").filter(function(o) {
     return ynToBool_(o.is_active, true);
   });
@@ -3903,6 +3967,7 @@ function getSurveyOptionLabelIndex_() {
       out[questionId][String(keys[k]).toUpperCase()] = label || keys[k];
     }
   }
+  __SURVEY_OPTION_LABEL_INDEX_MEMO_ = out;
   return out;
 }
 
@@ -4710,7 +4775,12 @@ function adminLogin(password) {
   try {
     CacheService.getScriptCache().put(getAdminSessionCacheKey_(tok), "1", ADMIN_SESSION_TTL_SEC_);
   } catch (e) {}
-  return { token: tok };
+  // Pre-load dashboard in same execution to save a round trip
+  var dashboard = null;
+  try {
+    dashboard = adminGetDashboard(tok);
+  } catch (e) { /* dashboard will be loaded separately if this fails */ }
+  return { token: tok, dashboard: dashboard };
 }
 
 function adminLogout(credential) {

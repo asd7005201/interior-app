@@ -7,6 +7,7 @@ function setupSpreadsheetIdFromManual(spreadsheetId) {
   props.setProperty("SPREADSHEET_ID", id);
   __SS_CACHE_BY_ID = Object.create(null);
   __SHEET_CACHE_BY_SS_ID = Object.create(null);
+  __SPREADSHEET_ID_MEMO_ = id;
   invalidateSettingsCache_(id);
   return id;
 }
@@ -16,6 +17,7 @@ function setupSpreadsheetId() {
   PropertiesService.getScriptProperties().setProperty("SPREADSHEET_ID", id);
   __SS_CACHE_BY_ID = Object.create(null);
   __SHEET_CACHE_BY_SS_ID = Object.create(null);
+  __SPREADSHEET_ID_MEMO_ = id;
   invalidateSettingsCache_(id);
   return id;
 }
@@ -26,6 +28,8 @@ function setupSpreadsheetId_() {
 
 var __SS_CACHE_BY_ID = Object.create(null);
 var __SHEET_CACHE_BY_SS_ID = Object.create(null);
+var __SETTINGS_MEMO_BY_SSID = Object.create(null);
+var __SPREADSHEET_ID_MEMO_ = "";
 var __SETTINGS_CACHE_KEY_PREFIX = "SETTINGS_V2";
 var ADMIN_SESSION_PREFIX_ = "AS_";
 var ADMIN_SESSION_CACHE_PREFIX_ = "ADMSESS_";
@@ -34,8 +38,10 @@ var ADMIN_SESSION_TTL_SEC_ = 21600;
 function getSpreadsheetId_(overrideId) {
   var id = String(overrideId || "").trim();
   if (id) return id;
+  if (__SPREADSHEET_ID_MEMO_) return __SPREADSHEET_ID_MEMO_;
   id = String(PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID") || "").trim();
   if (!id) throw new Error("SPREADSHEET_ID missing. Run setupSpreadsheetId().");
+  __SPREADSHEET_ID_MEMO_ = id;
   return id;
 }
 
@@ -101,8 +107,9 @@ function getCachedSettings_(spreadsheetId) {
 function readSettingsMap_(ss) {
   var spreadsheet = ss || getSpreadsheet_();
   var ssId = String(spreadsheet.getId() || "").trim();
+  if (__SETTINGS_MEMO_BY_SSID[ssId]) return __SETTINGS_MEMO_BY_SSID[ssId];
   var cachedMap = getCachedSettings_(ssId);
-  if (cachedMap) return cachedMap;
+  if (cachedMap) { __SETTINGS_MEMO_BY_SSID[ssId] = cachedMap; return cachedMap; }
 
   var sh = spreadsheet.getSheetByName("Settings");
   if (!sh) {
@@ -125,6 +132,7 @@ function readSettingsMap_(ss) {
   try {
     CacheService.getScriptCache().put(settingsCacheKey_(ssId), JSON.stringify(map), 120);
   } catch (e) {}
+  __SETTINGS_MEMO_BY_SSID[ssId] = map;
   return map;
 }
 
@@ -146,6 +154,7 @@ function invalidateSettingsCache_(overrideId) {
   var id = "";
   try { id = getSpreadsheetId_(overrideId); } catch (e) { id = String(overrideId || "").trim(); }
   if (!id) return;
+  delete __SETTINGS_MEMO_BY_SSID[id];
   try { CacheService.getScriptCache().remove(settingsCacheKey_(id)); } catch (e2) {}
 }
 
