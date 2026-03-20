@@ -8,10 +8,10 @@ _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 SERVICE_ACCOUNT_PATH = os.path.join(_PROJECT_ROOT, "tools", ".auth", "service_account.json")
 
 # Google Sheets - quote_DB
-SPREADSHEET_ID = "1SOG2d8w_3s1zP0Absc6x97WFzqrBkJpzZbvtGFV22ww"
+SPREADSHEET_ID = "1gZGsFRDGT86OHIle4Kb4zxaRWfcXWIWJQxdFpwc3CEc"
 
 # Google Drive - Material 루트 폴더
-DRIVE_ROOT_FOLDER_ID = "1nn2bY8nqwccQuqZCiC3Z61iT2M-V2di3"
+DRIVE_ROOT_FOLDER_ID = "1fC1MkJDMq2G3CnJJOrt2M7z_KnbDUnx7"
 
 # API 스코프
 SCOPES = [

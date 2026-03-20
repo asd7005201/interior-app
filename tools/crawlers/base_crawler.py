@@ -16,11 +16,11 @@ if sys.stdout.encoding != "utf-8":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 from . import config
-from .sheets_client import append_to_inbox, append_to_logs
+from .sheets_client import append_to_inbox, append_to_logs, batch_append_to_inbox, batch_append_to_logs
 from .drive_manager import ensure_folder_path, upload_image_from_url
 
 # Drive 업로드 활성화 (OAuth 사용자 인증 사용)
-ENABLE_DRIVE_UPLOAD = True
+ENABLE_DRIVE_UPLOAD = False  # 이미지 업로드는 upload_images.py로 별도 처리
 
 # trade_code → Drive 최상위 폴더명 매핑
 TRADE_CODE_FOLDERS = {
@@ -44,6 +44,7 @@ TRADE_CODE_FOLDERS = {
     "basin": "도기",
     "sink": "싱크대",
     "door": "도어",
+    "repair": "보수제",
 }
 
 
@@ -184,7 +185,10 @@ class BaseCrawler(ABC):
         }
 
     def save(self, run_id: str):
-        """결과를 CrawlerInbox에 저장하고 CrawlerLogs에 기록."""
+        """결과를 CrawlerInbox에 저장하고 CrawlerLogs에 기록.
+
+        ⚠️ 카테고리가 많을 때는 save() 대신 collect() + batch_save()를 사용할 것.
+        """
         for r in self.results:
             r["run_id"] = run_id
 
@@ -204,6 +208,29 @@ class BaseCrawler(ABC):
             "status": "done" if not self.errors else "partial",
             "message": "; ".join(self.errors[:3]) if self.errors else "OK",
         })
+
+    def collect(self, run_id: str) -> tuple[list[dict], dict]:
+        """결과를 Google에 보내지 않고 메모리에 모아서 반환.
+
+        Returns:
+            (inbox_rows, log_row) — 나중에 batch_save_all()에 전달.
+        """
+        for r in self.results:
+            r["run_id"] = run_id
+
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        log_row = {
+            "run_id": run_id,
+            "run_at": now,
+            "source_site": self.source_site,
+            "job_type": "trial_crawl",
+            "row_count": str(len(self.results) + len(self.errors)),
+            "success_count": str(len(self.results)),
+            "error_count": str(len(self.errors)),
+            "status": "done" if not self.errors else "partial",
+            "message": "; ".join(self.errors[:3]) if self.errors else "OK",
+        }
+        return list(self.results), log_row
 
 
 def _safe_filename(name: str) -> str:

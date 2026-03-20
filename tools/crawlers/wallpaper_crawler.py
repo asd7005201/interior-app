@@ -4,14 +4,46 @@ import time
 from .base_crawler import BaseCrawler
 
 
-# ── 카테고리 기반 크롤링 (롤 벽지) ──
+# ── 카테고리 기반 크롤링 (롤 벽지 - 브랜드 대분류) ──
 BRAND_CATEGORIES = {
     "신한벽지": "042005",
     "LX하우시스": "042003",
     "개나리벽지": "042004",
 }
 
-# ── 검색 기반 크롤링 (프리미엄 컬렉션) ──
+# ── 프리미엄/트렌드 벽지 컬렉션 (카테고리 기반) ★ 반드시 포함 ──
+PREMIUM_CATEGORIES = {
+    "디아망":       {"cate_cd": "042001003", "brand": "LX지인"},
+    "디아망포티스": {"cate_cd": "042001006", "brand": "LX지인"},
+    "파사드":       {"cate_cd": "042001007", "brand": "신한벽지"},
+    "프리모":       {"cate_cd": "042001005", "brand": "개나리벽지"},
+}
+
+# ── 브랜드별 세부 컬렉션 (카테고리 기반) ──
+BRAND_SUBCATEGORIES = {
+    "로하스":   {"cate_cd": "042004003", "brand": "개나리벽지"},
+    "스케치":   {"cate_cd": "042005003", "brand": "신한벽지"},
+    "베스티":   {"cate_cd": "042003004", "brand": "LX지인"},
+    "테라피":   {"cate_cd": "042003005", "brand": "LX지인"},
+    "아트북":   {"cate_cd": "042004005", "brand": "개나리벽지"},
+    "아이리스": {"cate_cd": "042005001", "brand": "신한벽지"},
+    "휘앙세":   {"cate_cd": "042003001", "brand": "LX지인"},
+    "트랜디":   {"cate_cd": "042004001", "brand": "개나리벽지"},
+    # ── 추가 브랜드 ──
+    "큐피트":   {"cate_cd": "042016001", "brand": "현대벽지"},
+    "큐브":     {"cate_cd": "042016002", "brand": "현대벽지"},
+    "큐티에":   {"cate_cd": "042016003", "brand": "현대벽지"},
+    "이룸":     {"cate_cd": "042011002", "brand": "FT벽지"},
+    "벨루체":   {"cate_cd": "042011001", "brand": "FT벽지"},
+    "더뷰":     {"cate_cd": "042011003", "brand": "FT벽지"},
+    "디앤디":   {"cate_cd": "042009002", "brand": "DID벽지"},
+    "나인":     {"cate_cd": "042009007", "brand": "DID벽지"},
+    "앨리스":   {"cate_cd": "042008001", "brand": "코스모스벽지"},
+    "소호":     {"cate_cd": "042008002", "brand": "코스모스벽지"},
+    "플레인":   {"cate_cd": "042007004", "brand": "서울벽지"},
+}
+
+# (하위호환) 검색 기반 크롤링용 — import 에러 방지
 PREMIUM_COLLECTIONS = {
     "파사드":  {"brand": "신한벽지",  "keyword": "파사드"},
     "디아망":  {"brand": "LX하우시스", "keyword": "디아망"},
@@ -37,10 +69,13 @@ class WallplanCrawler(BaseCrawler):
     source_site = "wallplan.co.kr"
     trade_code = "wallpaper"
 
-    def __init__(self, brand: str):
+    def __init__(self, brand: str, cate_cd: str | None = None,
+                 collection_name: str = "", skip_old_filter: bool = False):
         super().__init__()
         self.brand = brand
-        self.cate_cd = BRAND_CATEGORIES[brand]
+        self.cate_cd = cate_cd or BRAND_CATEGORIES[brand]
+        self.collection_name = collection_name
+        self.skip_old_filter = skip_old_filter
 
     def get_product_urls(self, limit: int = 0) -> list[dict]:
         """전체 페이지 순회. limit=0이면 전부."""
@@ -60,9 +95,12 @@ class WallplanCrawler(BaseCrawler):
                 if meta is None:
                     continue
 
-                # 오래된 제품 필터링
-                if _is_old_product(meta["list_name"]):
+                # 오래된 제품 필터링 (프리미엄/트렌드는 건너뜀)
+                if not self.skip_old_filter and _is_old_product(meta["list_name"]):
                     continue
+
+                if self.collection_name:
+                    meta["collection"] = self.collection_name
 
                 all_results.append(meta)
                 if 0 < limit <= len(all_results):
@@ -78,7 +116,7 @@ class WallplanCrawler(BaseCrawler):
 
 
 class WallplanSearchCrawler(BaseCrawler):
-    """wallplan.co.kr에서 키워드 검색 기반 크롤링 (파사드/디아망/로하스 등)."""
+    """wallplan.co.kr에서 키워드 검색 기반 크롤링."""
 
     source_site = "wallplan.co.kr"
     trade_code = "wallpaper"
@@ -107,7 +145,6 @@ class WallplanSearchCrawler(BaseCrawler):
                 if meta is None:
                     continue
 
-                # 컬렉션 태그 추가
                 meta["collection"] = self.collection_name
                 all_results.append(meta)
                 if 0 < limit <= len(all_results):
@@ -188,7 +225,6 @@ def _parse_detail_page(crawler, url: str, meta: dict) -> dict:
 
     # 컬렉션 정보
     collection = meta.get("collection", "")
-    # explain에서 컬렉션명 추출 (예: [스케치], [파사드], [디아망])
     coll_match = re.search(r"\[([^\]]+)\]", spec)
     if coll_match and not collection:
         collection = coll_match.group(1)

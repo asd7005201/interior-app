@@ -650,7 +650,11 @@
     setTimeout(function(){ node.style.opacity = "0"; node.style.transform = "translateY(8px)"; }, 2600);
     setTimeout(function(){ if (node.parentNode) node.parentNode.removeChild(node); }, 3200);
   }
-  function setLoginStatus(message){ $("loginStatus").textContent = message || ""; }
+  function setLoginStatus(message){
+    var msg = String(message || "").trim();
+    if (msg.indexOf("버튼을 여러") >= 0 || msg.indexOf("자동으로 갱신") >= 0) msg = "";
+    $("loginStatus").textContent = msg;
+  }
   function optionHtml(list, selected){ return list.map(function(item){ return '<option value="' + attr(item.value) + '"' + (String(selected||"") === String(item.value||"") ? " selected" : "") + '>' + esc(item.label) + '</option>'; }).join(""); }
   function statusLabel(code){ return STATUS_LABELS[String(code || "").toUpperCase()] || String(code || "-"); }
   function reviewLabel(code){ return REVIEW_LABELS[String(code || "").toUpperCase()] || String(code || "-"); }
@@ -947,6 +951,7 @@
     applyFilters();
   }
   async function tryCredential(credential, btn){
+    setLoginStatus("");
     state.credential = String(credential || "").trim();
     if (!state.credential) throw new Error("관리자 비밀번호 또는 세션 토큰이 필요합니다.");
     await loadDashboard(btn);
@@ -2303,6 +2308,8 @@
 
   async function boot(){
     renderStaticOptions();
+    // 로그인 힌트 메시지 제거
+    $("loginStatus").textContent = "";
     setWorkspaceTab(state.activeTab);
     bindEvents();
     try {

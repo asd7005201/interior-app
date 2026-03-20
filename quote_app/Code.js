@@ -2023,7 +2023,18 @@ function getQuote(quoteId, token, options) {
   var qid = String(quoteId || "").trim();
   if (!qid) throw new Error("견적 ID가 비어있습니다.");
   var q = findQuoteRow_(qid);
-  if (!q) throw new Error("견적을 찾을 수 없습니다. (ID: " + qid.slice(0, 8) + "...)");
+  if (!q) {
+    var debugInfo = "";
+    try {
+      var ss = SpreadsheetApp.openById(getScriptProp_("SPREADSHEET_ID"));
+      var qsh = ss.getSheetByName("Quotes");
+      var totalRows = qsh ? qsh.getLastRow() : 0;
+      debugInfo = " [ssId=" + getScriptProp_("SPREADSHEET_ID").slice(0, 8) + "..., Quotes rows=" + totalRows + "]";
+    } catch (dbgErr) {
+      debugInfo = " [debug unavailable: " + String(dbgErr.message || dbgErr).slice(0, 60) + "]";
+    }
+    throw new Error("견적을 찾을 수 없습니다. (ID: " + qid.slice(0, 8) + "...)" + debugInfo);
+  }
 
   if (!q.share_token || String(q.share_token) !== String(token)) {
     throw new Error("Invalid link token");

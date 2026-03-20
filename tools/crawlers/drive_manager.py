@@ -83,43 +83,65 @@ def upload_image_from_url(image_url: str, folder_id: str, filename: str) -> dict
     return {"file_id": uploaded["id"], "file_name": uploaded["name"]}
 
 
-def clean_folder(folder_id: str | None = None, recursive: bool = True) -> dict:
-    """
-    폴더 내부 파일/하위폴더 전부 삭제 (폴더 자체는 유지).
-    folder_id 미지정 시 DRIVE_ROOT_FOLDER_ID 사용.
-    반환: {"deleted_files": n, "deleted_folders": n}
-    """
-    drive = _get_drive()
-    target = folder_id or config.DRIVE_ROOT_FOLDER_ID
-    stats = {"deleted_files": 0, "deleted_folders": 0}
-
+def _collect_all_ids(drive, folder_id: str) -> list[dict]:
+    """폴더 내 모든 항목(파일+하위폴더) ID를 재귀 수집. 깊은 것부터 반환."""
+    all_items = []
     page_token = None
     while True:
-        q = f"'{target}' in parents and trashed=false"
+        q = f"'{folder_id}' in parents and trashed=false"
         result = drive.files().list(
-            q=q, fields="nextPageToken, files(id,name,mimeType)", pageSize=100, pageToken=page_token
+            q=q, fields="nextPageToken, files(id,mimeType)", pageSize=200, pageToken=page_token
         ).execute()
         items = result.get("files", [])
-
         for item in items:
-            try:
-                if item["mimeType"] == "application/vnd.google-apps.folder":
-                    if recursive:
-                        sub = clean_folder(item["id"], recursive=True)
-                        stats["deleted_files"] += sub["deleted_files"]
-                        stats["deleted_folders"] += sub["deleted_folders"]
-                    drive.files().delete(fileId=item["id"]).execute()
-                    stats["deleted_folders"] += 1
-                else:
-                    drive.files().delete(fileId=item["id"]).execute()
-                    stats["deleted_files"] += 1
-            except Exception:
-                stats.setdefault("skipped", 0)
-                stats["skipped"] += 1
-
+            if item["mimeType"] == "application/vnd.google-apps.folder":
+                # 하위 먼저 수집 (깊이 우선)
+                all_items.extend(_collect_all_ids(drive, item["id"]))
+            all_items.append(item)
         page_token = result.get("nextPageToken")
         if not page_token:
             break
+    return all_items
+
+
+def clean_folder(folder_id: str | None = None, recursive: bool = True) -> dict:
+    """
+    폴더 내부 파일/하위폴더 전부 삭제 (폴더 자체는 유지).
+    배치 삭제로 속도 최적화. folder_id 미지정 시 DRIVE_ROOT_FOLDER_ID 사용.
+    반환: {"deleted_files": n, "deleted_folders": n}
+    """
+    import time
+    drive = _get_drive()
+    target = folder_id or config.DRIVE_ROOT_FOLDER_ID
+    stats = {"deleted_files": 0, "deleted_folders": 0, "skipped": 0}
+
+    print("  항목 수집 중...", end=" ", flush=True)
+    all_items = _collect_all_ids(drive, target)
+    print(f"{len(all_items)}개 발견")
+
+    # 배치 삭제 (50개씩 묶어서)
+    batch_size = 50
+    for i in range(0, len(all_items), batch_size):
+        batch = all_items[i:i + batch_size]
+
+        def _make_callback(item):
+            def callback(req_id, response, exception):
+                if exception:
+                    stats["skipped"] += 1
+                elif item["mimeType"] == "application/vnd.google-apps.folder":
+                    stats["deleted_folders"] += 1
+                else:
+                    stats["deleted_files"] += 1
+            return callback
+
+        batch_req = drive.new_batch_http_request()
+        for item in batch:
+            batch_req.add(drive.files().delete(fileId=item["id"]), callback=_make_callback(item))
+        batch_req.execute()
+
+        done = min(i + batch_size, len(all_items))
+        print(f"  삭제: {done}/{len(all_items)}", flush=True)
+        time.sleep(1)  # Google 보호
 
     # 캐시 초기화
     _folder_cache.clear()

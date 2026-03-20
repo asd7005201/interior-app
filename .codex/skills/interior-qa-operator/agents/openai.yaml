@@ -1,0 +1,3 @@
+display_name: Interior QA Operator
+short_description: Run functional and UX QA against quote or prequote app URLs and return evidence-backed defects.
+default_prompt: Audit the provided quote_app or prequote_app URL for functionality, UI/UX, copy, design, and defects. Return an evidence-based QA report without executive debate.

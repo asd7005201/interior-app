@@ -1,0 +1,61 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clasp push: quote_app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "clasp:push:quote"],
+      "port": null,
+      "_note": "quote_app GAS 코드를 Google Apps Script에 동기화합니다."
+    },
+    {
+      "name": "clasp push: prequote_app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "clasp:push:prequote"],
+      "port": null,
+      "_note": "prequote_app GAS 코드를 Google Apps Script에 동기화합니다."
+    },
+    {
+      "name": "clasp deploy: quote_app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "clasp:deploy:quote"],
+      "port": null,
+      "_note": "quote_app을 새 버전으로 배포합니다."
+    },
+    {
+      "name": "clasp deploy: prequote_app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "clasp:deploy:prequote"],
+      "port": null,
+      "_note": "prequote_app을 새 버전으로 배포합니다."
+    },
+    {
+      "name": "QA: quote smoke test",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["tools/url_qa_smoke.py", "--app", "quote"],
+      "port": null,
+      "_note": "배포된 quote_app에 대해 Playwright 스모크 테스트를 실행합니다."
+    },
+    {
+      "name": "QA: prequote smoke test",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["tools/url_qa_smoke.py", "--app", "prequote"],
+      "port": null,
+      "_note": "배포된 prequote_app에 대해 Playwright 스모크 테스트를 실행합니다."
+    },
+    {
+      "name": "Release: quote_app (versioned)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/release_webapp.js", "--app-dir", "quote_app"],
+      "port": null,
+      "_note": "quote_app을 push + versioned deploy + settings 동기화까지 한 번에 실행합니다."
+    },
+    {
+      "name": "Release: prequote_app (versioned)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/release_webapp.js", "--app-dir", "prequote_app"],
+      "port": null,
+      "_note": "prequote_app을 push + versioned deploy + settings 동기화까지 한 번에 실행합니다."
+    }
+  ]
+}

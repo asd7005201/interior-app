@@ -17,48 +17,57 @@ MATERIAL_CATEGORIES = {
     "장판-현대": {"cate_cd": "046001006", "trade_code": "flooring", "material_type": "장판", "brand": "현대"},
     "장판-진양": {"cate_cd": "046001003", "trade_code": "flooring", "material_type": "장판", "brand": "진양"},
 
-    # ── 데코타일 (마루 대용) ──
+    # ── 데코타일 ──
     "데코타일-접착": {"cate_cd": "046002001", "trade_code": "deco_tile", "material_type": "접착식", "brand": ""},
-    "바닥시트지": {"cate_cd": "046003", "trade_code": "floor_sheet", "material_type": "바닥시트", "brand": ""},
+    "데코타일-비접착": {"cate_cd": "046002002", "trade_code": "deco_tile", "material_type": "비접착식", "brand": ""},
+
+    # ── 바닥시트지 ──
+    "바닥시트-원목": {"cate_cd": "046003001", "trade_code": "floor_sheet", "material_type": "원목", "brand": ""},
+    "바닥시트-콘크리트타일": {"cate_cd": "046003002", "trade_code": "floor_sheet", "material_type": "콘크리트타일", "brand": ""},
 
     # ── 시트지/인테리어필름 ──
     "시트지-단색": {"cate_cd": "044001", "trade_code": "interior_film", "material_type": "단색", "brand": ""},
     "시트지-몰딩샷시": {"cate_cd": "044002", "trade_code": "interior_film", "material_type": "몰딩전용", "brand": ""},
-    "시트지-대리석": {"cate_cd": "044011", "trade_code": "interior_film", "material_type": "대리석", "brand": ""},
     "시트지-무늬목": {"cate_cd": "044009", "trade_code": "interior_film", "material_type": "무늬목", "brand": ""},
-    "시트지-화벽벽돌": {"cate_cd": "044017", "trade_code": "interior_film", "material_type": "화벽벽돌", "brand": ""},
+    "시트지-대리석": {"cate_cd": "044011", "trade_code": "interior_film", "material_type": "대리석", "brand": ""},
     "시트지-하이그로시": {"cate_cd": "044012", "trade_code": "interior_film", "material_type": "하이그로시", "brand": ""},
-    "시트지-메탈": {"cate_cd": "044015", "trade_code": "interior_film", "material_type": "메탈", "brand": ""},
-    "시트지-패브릭": {"cate_cd": "044018", "trade_code": "interior_film", "material_type": "패브릭", "brand": ""},
+    "시트지-디자인패턴": {"cate_cd": "044013", "trade_code": "interior_film", "material_type": "디자인패턴", "brand": ""},
     "시트지-가죽": {"cate_cd": "044014", "trade_code": "interior_film", "material_type": "가죽", "brand": ""},
+    "시트지-메탈": {"cate_cd": "044015", "trade_code": "interior_film", "material_type": "메탈", "brand": ""},
+    "시트지-패널": {"cate_cd": "044016", "trade_code": "interior_film", "material_type": "패널", "brand": ""},
+    "시트지-화벽벽돌": {"cate_cd": "044017", "trade_code": "interior_film", "material_type": "화벽벽돌", "brand": ""},
+    "시트지-패브릭": {"cate_cd": "044018", "trade_code": "interior_film", "material_type": "패브릭", "brand": ""},
 
-    # ── 페인트 (하위 카테고리 분리) ──
-    "페인트-벽지벽면용": {"cate_cd": "043008", "trade_code": "paint", "material_type": "벽면용", "brand": ""},
+    # ── 페인트 ──
+    "페인트-벽면용": {"cate_cd": "043008", "trade_code": "paint", "material_type": "벽면용", "brand": ""},
     "페인트-방문가구용": {"cate_cd": "043009", "trade_code": "paint", "material_type": "방문가구용", "brand": ""},
     "페인트-타일욕실": {"cate_cd": "043010", "trade_code": "paint", "material_type": "타일욕실용", "brand": ""},
     "페인트-외부철재": {"cate_cd": "043012", "trade_code": "paint", "material_type": "외부철재", "brand": ""},
     "페인트-칠판자석": {"cate_cd": "043015", "trade_code": "paint", "material_type": "칠판자석", "brand": ""},
 
-    # ── 방수/에폭시 (줄눈/탄성 포함) ──
+    # ── 스테인/바니시 ──
+    "스테인바니시": {"cate_cd": "043011", "trade_code": "stain", "material_type": "스테인", "brand": ""},
+
+    # ── 젯소/프라이머 ──
+    "젯소프라이머": {"cate_cd": "043013", "trade_code": "primer", "material_type": "프라이머", "brand": ""},
+
+    # ── 방수/에폭시 ──
     "방수에폭시바닥": {"cate_cd": "043014", "trade_code": "waterproof", "material_type": "방수에폭시", "brand": ""},
 
     # ── 굽도리/걸레받이 (몰딩) ──
     "굽도리걸레받이": {"cate_cd": "046004", "trade_code": "molding", "material_type": "걸레받이", "brand": ""},
 
-    # ── 조명 ──
-    "조명-방등": {"cate_cd": "048019005", "trade_code": "lighting", "material_type": "방등", "brand": ""},
-
     # ── 논슬립 ──
     "논슬립": {"cate_cd": "046009", "trade_code": "non_slip", "material_type": "논슬립", "brand": ""},
 
-    # ── 스테인/바니시 ──
-    "스테인바니시": {"cate_cd": "043011", "trade_code": "stain", "material_type": "스테인", "brand": ""},
+    # ── 조명 ──
+    "조명-방등": {"cate_cd": "048019005", "trade_code": "lighting", "material_type": "방등", "brand": ""},
+    "조명-거실등": {"cate_cd": "048019002", "trade_code": "lighting", "material_type": "거실등", "brand": ""},
+    "조명-주방등": {"cate_cd": "048019003", "trade_code": "lighting", "material_type": "주방등", "brand": ""},
+    "조명-현관등": {"cate_cd": "048019004", "trade_code": "lighting", "material_type": "현관등", "brand": ""},
 
-    # ── 방문/가구용 페인트 ──
-    "방문가구페인트": {"cate_cd": "043009", "trade_code": "door_paint", "material_type": "방문가구용", "brand": ""},
-
-    # ── 젯소/프라이머 ──
-    "젯소프라이머": {"cate_cd": "043013", "trade_code": "primer", "material_type": "프라이머", "brand": ""},
+    # ── 보수제 (줄눈/메꿈) ──
+    "보수제-줄눈메꿈": {"cate_cd": "048009", "trade_code": "repair", "material_type": "보수제", "brand": ""},
 }
 
 
@@ -184,4 +193,6 @@ def _detect_unit(spec: str, trade_code: str) -> str:
         return "통"
     if trade_code in ("flooring", "floor_sheet"):
         return "m"
+    if trade_code in ("lighting", "repair"):
+        return "개"
     return "개"

@@ -1,0 +1,3 @@
+display_name: Executive Decision Council
+short_description: Run a two-stage multi-persona debate and return a CEO-ready decision brief.
+default_prompt: Facilitate a working-council debate among planner, designer, engineering, release, and QA roles, then add COO/CFO/CTO review and produce a CEO-ready recommendation.
