@@ -35,6 +35,8 @@ var __SURVEY_OPTION_LABEL_INDEX_MEMO_ = null;
 var __SURVEY_QUESTION_META_MAP_MEMO_ = null;
 var STATIC_ROWS_CACHE_PREFIX_ = "PQ_STATIC_ROWS_V1";
 var STATIC_ROWS_CACHE_TTL_SEC_ = 600;
+var DASHBOARD_CACHE_KEY_PREFIX_ = "PQ_DASH_V2";
+var DASHBOARD_CACHE_TTL_SEC_ = 60;
 var REQUEST_ROW_INDEX_SHEET_ = "RequestRowIndex";
 var SYNC_STATE_SHEET_ = "SyncState";
 var PERF_METRICS_SHEET_ = "PerfMetrics";
@@ -2628,6 +2630,7 @@ function submitSurvey(payload) {
     }
 
     cacheResultBootstrap_(requestObj, estimate);
+    invalidateDashboardCache_();
 
     return {
       request_id: requestId,
@@ -4790,45 +4793,144 @@ function adminLogout(credential) {
   return { success: true };
 }
 
+function dashboardCacheKey_() {
+  return DASHBOARD_CACHE_KEY_PREFIX_ + "_" + getSpreadsheetId_();
+}
+
+function invalidateDashboardCache_() {
+  try { CacheService.getScriptCache().remove(dashboardCacheKey_()); } catch (e) {}
+}
+
+function buildDashboardPayload_() {
+  var requests = readAllRows_("Requests");
+  var settings = getSettings_();
+  var optionIndex = getSurveyOptionLabelIndex_();
+
+  var now = new Date();
+  var recentDays = Number(settings.dashboard_recent_days || 30);
+  var cutoff = new Date(now.getTime() - recentDays * 86400000).toISOString();
+
+  var recent = requests.filter(function(r) { return String(r.created_at || "") >= cutoff; });
+  var byStatus = {};
+  recent.forEach(function(r) {
+    var st = String(r.status || "NEW");
+    byStatus[st] = (byStatus[st] || 0) + 1;
+  });
+
+  requests.sort(function(a, b) {
+    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
+  var queue = buildDashboardQueueSummary_(requests);
+
+  return {
+    total_requests: requests.length,
+    recent_count: recent.length,
+    recent_days: recentDays,
+    by_status: byStatus,
+    queue: queue,
+    built_at: nowIso_(),
+    requests: requests.slice(0, 200).map(function(r) {
+      return buildDashboardRequestSummaryLite_(r, optionIndex);
+    })
+  };
+}
+
+function buildDashboardRequestSummaryLite_(requestRow, optionIndex) {
+  var row = requestRow || {};
+  var projectType = String(row.project_type || "").trim().toUpperCase();
+  var areaQuestion = questionCodeForProject_(projectType, "R002_AREA", "C002_AREA");
+  var scopeQuestion = questionCodeForProject_(projectType, "R011_SCOPE_LEVEL", "C011_SCOPE_LEVEL");
+  var housingQuestion = questionCodeForProject_(projectType, "R001_HOUSING_TYPE", "C001_BIZ_TYPE");
+  var reviewStatus = reviewStatusCodeFromLabel_(row.review_status_label);
+  var estimateSourceCode = String(
+    row.final_estimate_source || (reviewStatus === "IN_REVIEW" ? "IN_REVIEW" : "AUTO")
+  ).trim().toUpperCase() || "AUTO";
+  var estMin = toNumber_(row.final_estimate_min, toNumber_(row.estimate_min, 0));
+  var estMax = toNumber_(row.final_estimate_max, toNumber_(row.estimate_max, 0));
+  var autoMin = toNumber_(row.estimate_min, 0);
+  var autoMax = toNumber_(row.estimate_max, 0);
+
+  return {
+    request_id: row.request_id,
+    customer_name: row.customer_name,
+    contact_phone: row.contact_phone,
+    project_type: row.project_type,
+    project_type_label: lookupSurveyOptionLabel_("Q000_PROJECT_TYPE", row.project_type, optionIndex) || (projectType === "COMMERCIAL" ? "상업" : "주거"),
+    housing_type: row.housing_type,
+    housing_type_label: lookupSurveyOptionLabel_(housingQuestion, row.housing_type, optionIndex) || String(row.housing_type || "").trim() || "-",
+    area_py: row.area_py,
+    area_label: lookupSurveyOptionLabel_(areaQuestion, row.area_py, optionIndex) || String(row.area_py || "").trim() || "-",
+    scope_level: row.scope_level,
+    scope_level_label: lookupSurveyOptionLabel_(scopeQuestion, row.scope_level, optionIndex) || String(row.scope_level || "").trim() || "-",
+    flow_mode: row.flow_mode,
+    flow_mode_label: lookupSurveyOptionLabel_("Q000_FLOW_MODE", row.flow_mode, optionIndex) || String(row.flow_mode || "").trim() || "-",
+    preferred_contact_method: row.preferred_contact_method,
+    preferred_contact_method_label: lookupSurveyOptionLabel_("Q903_CONTACT_METHOD", row.preferred_contact_method, optionIndex) || String(row.preferred_contact_method || "").trim() || "-",
+    estimate_min: estMin,
+    estimate_max: estMax,
+    auto_estimate_min: autoMin,
+    auto_estimate_max: autoMax,
+    status: row.status,
+    status_label: statusLabel_(row.status),
+    review_status: reviewStatus,
+    review_status_label: reviewStatusLabel_(reviewStatus),
+    estimate_source_label: estimateSourceCode === "ADMIN"
+      ? "관리자 수정값"
+      : (estimateSourceCode === "IN_REVIEW" ? "관리자 검토중" : "자동 산출값"),
+    estimate_source_code: estimateSourceCode,
+    is_manual_override: estimateSourceCode === "ADMIN",
+    priority: row.priority || "NORMAL",
+    priority_label: priorityLabel_(row.priority),
+    assignee_name: String(row.assignee_name || "").trim(),
+    assignee_email: String(row.assignee_email || "").trim(),
+    next_action_type: String(row.next_action_type || "").trim(),
+    next_action_note: String(row.next_action_note || "").trim(),
+    next_action_due_at: String(row.next_action_due_at || "").trim(),
+    next_action_summary: buildNextActionSummary_(row),
+    reminder_at: String(row.reminder_at || "").trim(),
+    work_state: String(row.work_state || "NEW").trim().toUpperCase(),
+    work_state_label: workStateLabel_(row.work_state),
+    duplicate_customer_count: toNumber_(row.duplicate_customer_count, 0),
+    quote_draft_status: String(row.quote_draft_status || "").trim(),
+    created_at: row.created_at,
+    schedule_start: row.schedule_start,
+    latest_review_at: row.latest_review_at || "",
+    latest_review_id: row.latest_review_id || ""
+  };
+}
+
 function adminGetDashboard(credential) {
   ensureSpreadsheetId_();
-  ensurePrequoteOperationalSchema_();
   var credInfo = assertAdminCredential_(credential);
   var startMs = Date.now();
-  var requests = [];
+  var requestCount = 0;
   var result = null;
   var error = null;
+  var cacheHit = false;
   try {
-    requests = readAllRows_("Requests");
-    var settings = getSettings_();
-    var optionIndex = getSurveyOptionLabelIndex_();
+    // Try CacheService first (avoids schema check + sheet reads entirely)
+    var cacheKey = dashboardCacheKey_();
+    var cached = cacheJsonGet_(cacheKey);
+    if (cached && cached.requests) {
+      cacheHit = true;
+      result = cached;
+      requestCount = cached.total_requests || 0;
+      return result;
+    }
 
-    var now = new Date();
-    var recentDays = Number(settings.dashboard_recent_days || 30);
-    var cutoff = new Date(now.getTime() - recentDays * 86400000).toISOString();
+    // Cache miss — do full build (schema check only on miss)
+    ensurePrequoteOperationalSchema_();
+    result = buildDashboardPayload_();
+    requestCount = result.total_requests || 0;
 
-    var recent = requests.filter(function(r) { return String(r.created_at || "") >= cutoff; });
-    var byStatus = {};
-    recent.forEach(function(r) {
-      var st = String(r.status || "NEW");
-      byStatus[st] = (byStatus[st] || 0) + 1;
-    });
+    // Cache the result (GAS CacheService limit is 100KB per key)
+    try {
+      var json = JSON.stringify(result);
+      if (json.length < 95000) {
+        CacheService.getScriptCache().put(cacheKey, json, DASHBOARD_CACHE_TTL_SEC_);
+      }
+    } catch (cacheErr) {}
 
-    requests.sort(function(a, b) {
-      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
-    });
-    var queue = buildDashboardQueueSummary_(requests);
-
-    result = {
-      total_requests: requests.length,
-      recent_count: recent.length,
-      recent_days: recentDays,
-      by_status: byStatus,
-      queue: queue,
-      requests: requests.slice(0, 200).map(function(r) {
-        return buildDashboardRequestSummary_(r, null, optionIndex);
-      })
-    };
     return result;
   } catch (e) {
     error = e;
@@ -4838,13 +4940,20 @@ function adminGetDashboard(credential) {
       "dashboard_load",
       Date.now() - startMs,
       "",
-      { request_count: requests.length, returned_count: result && result.requests ? result.requests.length : 0 },
+      { request_count: requestCount, returned_count: result && result.requests ? result.requests.length : 0, cache_hit: cacheHit },
       !error,
       error ? String(error) : "",
       "ADMIN",
       credInfo.type
     );
   }
+}
+
+function adminRefreshDashboard(credential) {
+  ensureSpreadsheetId_();
+  assertAdminCredential_(credential);
+  invalidateDashboardCache_();
+  return adminGetDashboard(credential);
 }
 
 function adminGetRequestDetail(credential, requestId) {
@@ -5078,6 +5187,7 @@ function adminSaveRequestReview(credential, requestId, payload) {
   appendRows_("RequestTimeline", timelineRowsToAppend);
   maybeNotifyAssigneeChange_(previousRequestRow, found.data, reviewRow);
 
+    invalidateDashboardCache_();
     result = {
       success: true,
       saved_review: reviewRow,
@@ -5184,6 +5294,7 @@ function adminUpdateRequestStatus(credential, requestId, newStatus, note) {
   var event = buildTimelineEvent_(found.data.request_id, "ADMIN", "STATUS_CHANGE", oldStatus, targetStatus, noteText, "", now);
   appendRow_("RequestTimeline", event);
 
+  invalidateDashboardCache_();
   return {
     success: true,
     old_status: oldStatus,
@@ -5212,6 +5323,7 @@ function adminAddNote(credential, requestId, noteText, options) {
   found.data.updated_at = now;
   var event = buildTimelineEvent_(found.data.request_id, "ADMIN", "ADMIN_NOTE", "", "", text, "", now);
   appendRow_("RequestTimeline", event);
+  invalidateDashboardCache_();
   return {
     success: true,
     updated_at: now,
@@ -6060,6 +6172,7 @@ function adminBulkUpdateRequests(credential, payload) {
     ));
     updated.push(Object.assign({}, found.data, patch));
   }
+  invalidateDashboardCache_();
   return {
     success: true,
     updated_count: updated.length,

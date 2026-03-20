@@ -10,6 +10,17 @@
        ══════════════════════════════════════════════════════════ */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     .hidden{display:none!important}
+    /* Skeleton loading animation */
+    @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+    .skeleton-row td{padding:10px 12px}
+    .skeleton-block{height:14px;border-radius:4px;background:linear-gradient(90deg,rgba(0,0,0,.06) 25%,rgba(0,0,0,.10) 50%,rgba(0,0,0,.06) 75%);background-size:400px 100%;animation:shimmer 1.4s ease-in-out infinite}
+    .skeleton-block.w-short{width:60px}
+    .skeleton-block.w-med{width:100px}
+    .skeleton-block.w-long{width:160px}
+    .skeleton-block.w-id{width:120px;margin-bottom:4px}
+    .skeleton-block+.skeleton-block{margin-top:6px}
+    .dashboard-stale-banner{display:none;padding:6px 14px;background:rgba(184,150,59,.12);border-radius:8px;font:500 12px/1.4 var(--ff);color:#8a7530;margin-bottom:8px;align-items:center;gap:6px}
+    .dashboard-stale-banner.is-visible{display:flex}
     .ops-shell{min-height:100vh;position:relative;background:
       radial-gradient(circle at top left, rgba(184,150,59,.16), transparent 24%),
       radial-gradient(circle at bottom right, rgba(47,107,94,.14), transparent 26%),
@@ -383,6 +394,7 @@
           <div class="panel-title">접수 목록</div>
           <div class="selection-meta"></div>
         </div>
+        <div id="staleBanner" class="dashboard-stale-banner">캐시된 데이터 표시 중 — 최신 데이터 불러오는 중...</div>
         <div class="panel-body" style="padding-top:0">
           <div class="table-wrap">
             <table class="admin-table">
@@ -617,6 +629,49 @@
   function saveCred(value){ try{ localStorage.setItem(STORAGE_KEY, value || ""); }catch(e){} }
   function loadCred(){ try{ return String(localStorage.getItem(STORAGE_KEY) || ""); }catch(e){ return ""; } }
   function clearCred(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(e){} }
+  var DASH_CACHE_KEY = "PQ_ADMIN_DASH_CACHE_V2";
+  var DASH_CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+  function saveDashCache(data){
+    try{
+      var payload = { ts: Date.now(), data: data };
+      localStorage.setItem(DASH_CACHE_KEY, JSON.stringify(payload));
+    }catch(e){}
+  }
+  function loadDashCache(){
+    try{
+      var raw = localStorage.getItem(DASH_CACHE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || !parsed.data || !parsed.ts) return null;
+      if (Date.now() - parsed.ts > DASH_CACHE_MAX_AGE_MS) return null;
+      return parsed.data;
+    }catch(e){ return null; }
+  }
+  function clearDashCache(){ try{ localStorage.removeItem(DASH_CACHE_KEY); }catch(e){} }
+  function showStaleBanner(show){
+    var el = $("staleBanner");
+    if (el) el.classList.toggle("is-visible", !!show);
+  }
+  function showSkeletonRows(){
+    var tbody = $("requestTableBody");
+    if (!tbody) return;
+    var rows = [];
+    for (var i = 0; i < 8; i++){
+      rows.push(
+        '<tr class="skeleton-row">' +
+        '<td><div class="skeleton-block w-short" style="width:20px;height:16px"></div></td>' +
+        '<td><div class="skeleton-block w-id"></div><div class="skeleton-block w-med"></div></td>' +
+        '<td><div class="skeleton-block w-long"></div><div class="skeleton-block w-med"></div></td>' +
+        '<td><div class="skeleton-block w-med"></div><div class="skeleton-block w-short"></div></td>' +
+        '<td><div class="skeleton-block w-short"></div></td>' +
+        '<td><div class="skeleton-block w-short"></div></td>' +
+        '<td><div class="skeleton-block w-long"></div></td>' +
+        '<td><div class="skeleton-block w-short"></div></td>' +
+        '</tr>'
+      );
+    }
+    tbody.innerHTML = rows.join("");
+  }
   function setBusy(btn, busy, text){
     if (!btn) return;
     if (busy){ if (!btn.dataset.label) btn.dataset.label = btn.textContent; btn.disabled = true; btn.textContent = text || getUiCopy("admin_loading_action", "처리 중..."); }
@@ -939,21 +994,76 @@
     }).join("");
     $("selectAllRows").checked = rows.length > 0 && rows.every(function(row){ return !!state.selected[row.request_id]; });
   }
-  async function loadDashboard(btn){
-    var res = await callServer("adminGetDashboard", [state.credential], btn, {
-      flightKey: "dashboard",
-      pendingKey: "dashboard",
-      busyText: "대시보드 불러오는 중..."
-    });
-    state.dashboard = res || {};
-    renderQueue();
-    renderFunnel();
-    applyFilters();
+  async function forceRefreshDashboard(btn){
+    showSkeletonRows();
+    try {
+      var res = await callServer("adminRefreshDashboard", [state.credential], btn, {
+        flightKey: "dashboard",
+        pendingKey: "dashboard",
+        busyText: "최신 데이터 불러오는 중..."
+      });
+      state.dashboard = res || {};
+      saveDashCache(state.dashboard);
+      showStaleBanner(false);
+      renderQueue();
+      renderFunnel();
+      applyFilters();
+    } catch (e) {
+      showStaleBanner(false);
+      throw e;
+    }
+  }
+  async function loadDashboard(btn, opts){
+    var options = opts || {};
+    var showSkeleton = !state.dashboard || !(state.dashboard.requests && state.dashboard.requests.length);
+    if (showSkeleton && !options.silent) showSkeletonRows();
+    try {
+      var res = await callServer("adminGetDashboard", [state.credential], btn, {
+        flightKey: "dashboard",
+        pendingKey: "dashboard",
+        busyText: "대시보드 불러오는 중..."
+      });
+      state.dashboard = res || {};
+      saveDashCache(state.dashboard);
+      showStaleBanner(false);
+      renderQueue();
+      renderFunnel();
+      applyFilters();
+    } catch (e) {
+      showStaleBanner(false);
+      throw e;
+    }
   }
   async function tryCredential(credential, btn){
     setLoginStatus("");
     state.credential = String(credential || "").trim();
     if (!state.credential) throw new Error("관리자 비밀번호 또는 세션 토큰이 필요합니다.");
+
+    // Show cached data immediately while server loads
+    var cached = loadDashCache();
+    if (cached && cached.requests && cached.requests.length) {
+      state.dashboard = cached;
+      saveCred(state.credential);
+      $("loginView").classList.add("hidden");
+      $("appView").classList.remove("hidden");
+      setWorkspaceTab(state.activeTab);
+      renderQueue();
+      renderFunnel();
+      applyFilters();
+      showStaleBanner(true);
+      // Background refresh — don't block UI
+      loadDashboard(btn, { silent: true }).catch(function(err){
+        // Session expired — force re-login
+        showStaleBanner(false);
+        clearDashCache();
+        state.credential = "";
+        clearCred();
+        showLogin("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      });
+      return;
+    }
+
+    // No cache — load normally (with skeleton)
     await loadDashboard(btn);
     saveCred(state.credential);
     $("loginView").classList.add("hidden");
@@ -971,6 +1081,7 @@
     // Use pre-loaded dashboard from login response if available
     if (res && res.dashboard) {
       state.dashboard = res.dashboard;
+      saveDashCache(state.dashboard);
       renderQueue();
       renderFunnel();
       applyFilters();
@@ -2071,6 +2182,7 @@
     state.pendingKeys = Object.create(null);
     state.inflight = Object.create(null);
     clearCred();
+    clearDashCache();
     closeDetail();
     showLogin("로그아웃했습니다.");
   }
@@ -2078,7 +2190,7 @@
     $("btnLogin").addEventListener("click", function(){ login(this).catch(handleError); });
     $("btnLoginReuse").addEventListener("click", function(){ reuseSavedCredential(this).catch(handleError); });
     $("loginPassword").addEventListener("keydown", function(e){ if (e.key === "Enter") login($("btnLogin")).catch(handleError); });
-    $("btnReloadDashboard").addEventListener("click", function(){ loadDashboard(this).catch(handleError); });
+    $("btnReloadDashboard").addEventListener("click", function(){ forceRefreshDashboard(this).catch(handleError); });
     $("btnLogout").addEventListener("click", function(){ logout(this).catch(handleError); });
     document.querySelectorAll(".workspace-tab").forEach(function(btn){
       btn.addEventListener("click", function(){ setWorkspaceTab(btn.getAttribute("data-tab")); });
