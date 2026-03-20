@@ -330,6 +330,7 @@ function doGet(e) {
       tpl.app_url = "";
 
       try {
+        if (!CUSTOMER_SHARE_ENABLED_) throw new Error("고객 공유 링크가 비활성화되어 있습니다.");
         var quoteId = String((e && e.parameter && e.parameter.quoteId) || "").trim();
         var token = String((e && e.parameter && e.parameter.token) || "").trim();
         if (!quoteId || !token) throw new Error("Missing quoteId/token");
@@ -2019,8 +2020,10 @@ function getQuote(quoteId, token, options) {
   ensureCoreSchemaReady_();
   var opts = options || {};
 
-  var q = findQuoteRow_(quoteId);
-  if (!q) throw new Error("Quote not found");
+  var qid = String(quoteId || "").trim();
+  if (!qid) throw new Error("견적 ID가 비어있습니다.");
+  var q = findQuoteRow_(qid);
+  if (!q) throw new Error("견적을 찾을 수 없습니다. (ID: " + qid.slice(0, 8) + "...)");
 
   if (!q.share_token || String(q.share_token) !== String(token)) {
     throw new Error("Invalid link token");

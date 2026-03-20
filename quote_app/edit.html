@@ -20,15 +20,13 @@
     #groupAddPanel summary:hover{color:var(--pri)}
     #groupAddPanel[open] summary span:first-child{transform:rotate(90deg)}
 
-    /* Better stat cards on edit page */
+    /* Stat cards on edit page */
     .stat-card{position:relative;overflow:hidden}
-    .stat-card::before{content:"";position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;background:rgba(47,107,94,.04);transform:translate(20px,-20px)}
-    .stat-card--gold::before{background:rgba(47,107,94,.08)}
 
     /* Save/share section polish */
     #btnSave{background:var(--pri);box-shadow:0 2px 8px rgba(47,107,94,.18)}
     #btnSave:hover{background:var(--pri-dk);box-shadow:0 4px 16px rgba(47,107,94,.25);transform:translateY(-1px)}
-    #btnShare:hover{box-shadow:0 4px 12px rgba(28,26,23,.12);transform:translateY(-1px)}
+    #btnShare:hover{background:var(--pri,#2F6B5E)!important;box-shadow:0 4px 12px rgba(47,107,94,.18);transform:translateY(-1px)}
 
     /* Catalog modal improvements */
     #catalogModal .bottom-sheet{border-radius:var(--r16) var(--r16) 0 0;box-shadow:0 -8px 32px rgba(28,26,23,.15)}
@@ -181,7 +179,7 @@
               </label>
               <label style="display:inline-flex; align-items:center; gap:8px; margin:0; cursor:pointer; font-weight:400;">
                 <input id="include_included_in_total" type="checkbox" style="width:auto;">
-                포함 금액 포함
+                기타 포함 항목 합산
               </label>
             </div>
           </div>
@@ -261,7 +259,7 @@
         <div class="card__body">
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             <button id="btnSave" type="button" class="btn btn--primary btn--lg">저장하기</button>
-            <button id="btnShare" type="button" class="btn btn--lg" style="background:var(--color-warm-700);">고객 공유 링크 만들기</button>
+            <button id="btnShare" type="button" class="btn btn--lg" style="background:var(--pri-dk,#245A4F);color:#fff;">고객 공유 링크 만들기</button>
             <button id="btnDuplicate" type="button" class="btn btn--weak btn--lg">견적 복사</button>
             <button id="btnExportCsv" type="button" class="btn btn--weak btn--sm" style="margin-left:auto;">CSV 내보내기</button>
           </div>
@@ -519,11 +517,15 @@
 
     if (!links) return;
     if (!CUSTOMER_SHARE_ENABLED) {
-      links.innerHTML = '<div class="help-text">현재 quote_app은 관리자 전용 배포라 고객 공유 링크를 만들 수 없어요.</div>';
+      links.innerHTML = '<div class="help-text">고객 공유 설정을 불러오는 중…</div>';
       return;
     }
-    if (!hasQuoteId && !String(links.textContent || "").trim()) {
+    var linksText = String(links.textContent || "").trim();
+    var isStaleMsg = !linksText || linksText.indexOf("불러오는 중") >= 0 || linksText.indexOf("관리자 전용") >= 0;
+    if (!hasQuoteId && isStaleMsg) {
       links.innerHTML = '<div class="help-text">저장한 뒤 링크를 만들 수 있어요.</div>';
+    } else if (hasQuoteId && isStaleMsg) {
+      links.innerHTML = '';
     }
   }
   function resetEditorForNewQuote(){
@@ -2090,9 +2092,11 @@
 
     callServer(btn, function(runner){ runner.generateShare(currentQuoteId, pw()); }, function(res){
       $("links").innerHTML =
-        '<div><b>고객 링크</b>: <a target="_blank" href="'+ res.viewUrl +'">열기</a> ' +
-        '<button type="button" class="copyBtn" id="copyView">복사</button></div>' +
-        '<div class="muted" style="margin-top:4px;">인쇄: <a target="_blank" href="'+ res.printUrl +'">열기</a></div>';
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><b>고객 링크</b>' +
+        '<a target="_blank" href="'+ res.viewUrl +'" class="btn btn--sm" style="text-decoration:none;">열기</a>' +
+        '<button type="button" class="copyBtn btn--sm" id="copyView">복사</button></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><span class="muted">인쇄</span>' +
+        '<a target="_blank" href="'+ res.printUrl +'" class="btn btn--sm" style="text-decoration:none;">열기</a></div>';
 
       document.getElementById("copyView").onclick = function(){
         var t = res.viewUrl;
