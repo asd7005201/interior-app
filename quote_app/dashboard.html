@@ -221,11 +221,11 @@
       </div>
       <div class="card__body">
         <div class="dash-row-grid" style="grid-template-columns:repeat(2,1fr);">
-          <div class="stat-card">
+          <div class="stat-card stat-card--gold">
             <div class="stat-card__label">이번달 합계</div>
             <div class="stat-card__value" id="sumMonth">0원</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card stat-card--gold">
             <div class="stat-card__label">확정 전환율</div>
             <div class="stat-card__value" id="statConversion">-</div>
           </div>
@@ -791,7 +791,7 @@
             html += '<div style="display:grid; grid-template-columns:70px 1fr 100px; gap:8px; align-items:center;">';
             html += '<div style="font:var(--font-caption); color:var(--color-text-subtle);">' + m.month + '</div>';
             html += '<div style="height:20px; background:var(--color-warm-100,#F5F3EF); border-radius:4px; overflow:hidden;">';
-            html += '<div style="width:' + pct + '%; height:100%; background:var(--pri,#2F6B5E); border-radius:4px; transition:width 0.4s ease;"></div>';
+            html += '<div style="width:' + pct + '%; height:100%; background:var(--color-gold,#C4A265); border-radius:4px; transition:width 0.4s ease;"></div>';
             html += '</div>';
             html += '<div style="font:var(--font-caption); font-weight:600; text-align:right;">' + fmtKRW(m.total) + '</div>';
             html += '</div>';
